@@ -7,9 +7,9 @@ namespace NavitalevichBot;
 internal class InstClientFactory
 {
     const string StateFile = "state.bin";
-    public static async Task<IInstaApi> CreateAndLoginInstClient()
+    public static async Task<IInstaApi> CreateAndLoginInstClient(string username, string password)
     {
-        var userSession = UserSessionData.ForUsername("n.a.vi_talevich").WithPassword("Sasha2002!");
+        var userSession = UserSessionData.ForUsername(username).WithPassword(password);
 
         var instaApi = InstaApiBuilder.CreateBuilder()
             .SetUser(userSession)

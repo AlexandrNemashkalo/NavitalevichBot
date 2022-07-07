@@ -17,15 +17,12 @@ public class Program
     private static InstModule InstModule;
     private static DatabaseContext _context;
 
+    private static Dictionary<long, string> LastUpdateDict = new Dictionary<long, string>();
+
     public static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
         var chatId = update?.Message?.Chat?.Id;
         if (chatId == null) return;
-
-        if (InstModule == null) {
-            InstModule = new InstModule(InstaApi, botClient, _context, chatId.Value, cancellationToken);
-            JobManager.Initialize(InstModule);
-        }
 
         // Only process Message updates: https://core.telegram.org/bots/api#message
         if (update.Type != UpdateType.Message)
@@ -35,8 +32,35 @@ public class Program
             return;
 
         var messageText = update.Message.Text;
+        if (messageText == "/setuser")
+        {
+            await botClient.SendTextMessageAsync(chatId, "send me your username and password separated by space", cancellationToken: cancellationToken);
+            LastUpdateDict[chatId.Value] = messageText;
+            return;
+        }
 
-        if(messageText == "/getposts")
+
+        var lastMessage = LastUpdateDict.GetValueOrDefault(chatId.Value);
+        Console.WriteLine(lastMessage);
+        if (lastMessage == "/setuser")
+        {
+            var user = messageText.Split(" ");
+            if (InstModule == null)
+            {
+                InstaApi = await InstClientFactory.CreateAndLoginInstClient(user[0], user[1]);
+                InstModule = new InstModule(InstaApi, botClient, _context, chatId.Value, cancellationToken);
+                JobManager.Initialize(InstModule);
+                await botClient.SendTextMessageAsync(chatId, "success", cancellationToken: cancellationToken);
+            }
+        }        
+
+        if(InstModule == null)
+        {
+            LastUpdateDict[chatId.Value] = messageText;
+            return;
+        }
+
+        if (messageText == "/getposts")
         {
             await InstModule.SendPosts(cancellationToken);
         }
@@ -56,6 +80,8 @@ public class Program
         {
             await InstModule.LikeMedia(update.Message.ReplyToMessage.MessageId, cancellationToken);
         }
+
+        LastUpdateDict[chatId.Value] = messageText;
     }
 
     public static Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
@@ -77,8 +103,6 @@ public class Program
         using var cts = new CancellationTokenSource();
 
         _context = new DatabaseContext();
-
-        InstaApi = await InstClientFactory.CreateAndLoginInstClient();
 
         // StartReceiving does not block the caller thread. Receiving is done on the ThreadPool.
         var receiverOptions = new ReceiverOptions

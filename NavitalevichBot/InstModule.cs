@@ -47,7 +47,7 @@ internal class InstModule : Registry
         _cache = new MemoryCache(options);
 
         SetPage(DefaultPage);
-        //Schedule(async () => { await SendPosts(DefaultPage, cancellationToken); }).WithName(nameof(SendPosts)).ToRunNow().AndEvery(1).Hours();
+        Schedule(async () => { await SendPosts(DefaultPage, cancellationToken); }).WithName(nameof(SendPosts)).ToRunNow().AndEvery(1).Hours();
         Schedule(async () => { await SendStories(cancellationToken); }).WithName(nameof(SendStories)).ToRunNow().AndEvery(1).Hours();
 
         Console.WriteLine("run12345");
