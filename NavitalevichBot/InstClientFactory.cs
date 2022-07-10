@@ -2,6 +2,7 @@
 using InstagramApiSharp.API.Builder;
 using InstagramApiSharp.Classes;
 using InstagramApiSharp.Classes.SessionHandlers;
+using System.Text.Json;
 
 namespace NavitalevichBot;
 internal class InstClientFactory
@@ -40,6 +41,7 @@ internal class InstClientFactory
                 if (logInResult.Value == InstaLoginResult.ChallengeRequired)     // 1.ChallengeRequired
                 {
                     var challenge = await instaApi.GetChallengeRequireVerifyMethodAsync();
+                    Console.WriteLine("Challenge: " + JsonSerializer.Serialize(challenge));
                     if (challenge.Succeeded)
                     {
                         if (challenge.Value.SubmitPhoneRequired)
