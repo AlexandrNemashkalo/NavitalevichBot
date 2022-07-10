@@ -73,6 +73,10 @@ internal class InstClientFactory
                 {
                     Console.WriteLine("Нужно пройти двуфакторную аунтефикацию");
                 }
+                else
+                {
+                    Console.WriteLine("Login error: " + JsonSerializer.Serialize(logInResult.Info));
+                }
             }
         }
         else
