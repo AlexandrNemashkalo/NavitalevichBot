@@ -1,8 +1,6 @@
 ﻿using FluentScheduler;
-using InstagramApiSharp.API;
-using Microsoft.Data.Sqlite;
 using System.Collections.Concurrent;
-using System.Reflection;
+using System.Text.Json;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Extensions.Polling;
@@ -12,12 +10,10 @@ namespace NavitalevichBot;
 
 public class Program
 {
-    static ITelegramBotClient botClient = new TelegramBotClient("5307410957:AAEDvwbykNd_hBUOh63upqaQfr8FPkDQJTc");
+    static ITelegramBotClient botClient = new TelegramBotClient(Constants.TelegramToken);
 
     private static ConcurrentDictionary<long, InstModule> InstModuleDict = new ConcurrentDictionary<long, InstModule>();
     private static ConcurrentDictionary<long, string> LastUpdateDict = new ConcurrentDictionary<long, string>();
-
-    private static long AdminChatId = 656355529;
 
     private static DatabaseContext _context;
 
@@ -33,49 +29,84 @@ public class Program
         (update => update.Message.Text == "/setsettings", async (instModule, update, token) => await instModule.PreSetSettingsInfo(token)),
         (update => LastUpdateDict.GetValueOrDefault(update.Message.Chat.Id) == "/setsettings", async (instModule, update, token) => await instModule.SetSettings(update.Message.Text,token)),
 
-        (update => update.Message.Text == "/addchat" && update.Message.Chat.Id == AdminChatId, async (instModule, update, token) => await PreAddChatId(token)),
-        (update => LastUpdateDict.GetValueOrDefault(update.Message.Chat.Id) == "/addchat" && update.Message.Chat.Id == AdminChatId, async (instModule, update, token) => await AddChatId(update.Message.Text, token)),
+        (update => update.Message.Text == "/addchat" && update.Message.Chat.Id == Constants.AdminChatId, async (instModule, update, token) => await PreAddChatId(token)),
+        (update => LastUpdateDict.GetValueOrDefault(update.Message.Chat.Id) == "/addchat" && update.Message.Chat.Id == Constants.AdminChatId, async (instModule, update, token) => await AddChatId(update.Message.Text, token)),
     };
 
     public static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
         var chatId = update?.Message?.Chat?.Id;
-        //return;
-        if (chatId == null) return;
 
-        // Only process Message updates: https://core.telegram.org/bots/api#message
-        if (update.Type != UpdateType.Message)
-            return;
-        // Only process text messages
-        if (update.Message!.Type != MessageType.Text)
-            return;
+        if (chatId == null) return;
+        if (update.Type != UpdateType.Message) return;
+        if (update.Message!.Type != MessageType.Text) return;
 
         try
         {
+            var messageText = update.Message.Text;
             if (!await _context.IsAvaliableChatId(chatId.Value))
             {
                 await botClient.SendTextMessageAsync(chatId, $"😩 sorry access blocked \n contact the bot admin (@navitalevich) and tell him your chatId:{chatId}", cancellationToken: cancellationToken);
             }
 
-            var messageText = update.Message.Text;
             if (!InstModuleDict.TryGetValue(chatId.Value, out var instModule))
             {
                 var lastMessage = LastUpdateDict.GetValueOrDefault(chatId.Value);
                 LastUpdateDict[chatId.Value] = messageText;
-                if (messageText == "/setuser")
+
+                var isAuth = false;
+                if (_context.GetSessionMessage(chatId.Value) != null)
                 {
-                    await botClient.SendTextMessageAsync(chatId, "send me your username and password separated by space", cancellationToken: cancellationToken);
+                    var instSessionHandler = new InstSessionHandler(botClient, _context, chatId.Value);
+                    var instaApi = await InstClientFactory.CreateAndLoginInstClient(null, null, instSessionHandler);
+                    if (instaApi != null)
+                    {
+                        var newInstModule = new InstModule(instaApi, botClient, _context, chatId.Value, cancellationToken);
+                        JobManager.Initialize(newInstModule);
+                        if (InstModuleDict.TryAdd(chatId.Value, newInstModule))
+                        {
+                            isAuth = true;
+                        }
+                    }
+                }
+
+                if (isAuth)
+                {
+                    // не разрешаем логинится, даем возможность выполнить действия
+                }
+                else if (messageText == "/setuser")
+                {
+                    var userdata = new UserData()
+                    {
+                        UserName = "example",
+                        Password = "1234"
+                    };
+                    var options = new JsonSerializerOptions
+                    {
+                        WriteIndented = true
+                    };
+                    await botClient.SendTextMessageAsync(chatId, $"send me your userdata by format: \n{JsonSerializer.Serialize(userdata, options)}", cancellationToken: cancellationToken);
                     return;
                 }
                 else if (lastMessage == "/setuser")
                 {
-                    var user = messageText?.Split(" ");
-                    if (user == null || user.Length != 2)
+                    UserData userData = null;
+                    try
+                    {
+                        userData = JsonSerializer.Deserialize<UserData>(messageText);
+                        if(userData == null)
+                        {
+                            throw new Exception();
+                        }
+                    }
+                    catch (Exception ex)
                     {
                         await botClient.SendTextMessageAsync(chatId, "uncorrect data, try again /setuser later", cancellationToken: cancellationToken);
                         return;
                     }
-                    var instaApi = await InstClientFactory.CreateAndLoginInstClient(user[0], user[1]);
+
+                    var instSessionHandler = new InstSessionHandler(botClient, _context, chatId.Value);
+                    var instaApi = await InstClientFactory.CreateAndLoginInstClient(userData.UserName, userData.Password, instSessionHandler);
                     if(instaApi == null)
                     {
                         await botClient.SendTextMessageAsync(chatId, "😢 authentication error, try disabling two-factor authentication and confirm the current address in the app", cancellationToken: cancellationToken);
@@ -99,11 +130,12 @@ public class Program
                 }
             }
 
+            var instmod = InstModuleDict.GetValueOrDefault(chatId.Value);
             foreach (var (isMatch, action) in Actions)
             {
-                if (isMatch(update))
+                if (instmod != null && isMatch(update))
                 {
-                    await action(instModule, update, cancellationToken);
+                    await action(instmod, update, cancellationToken);
                     LastUpdateDict[chatId.Value] = messageText;
                     return;
                 }
@@ -113,7 +145,7 @@ public class Program
         }
         catch (Exception ex)
         {
-            await botClient.SendTextMessageAsync(chatId, $"some error, {ex.Message.Take(200)}", cancellationToken: cancellationToken);
+            await botClient.SendTextMessageAsync(chatId, $"some error, {ex.Message}", cancellationToken: cancellationToken);
         }
     }
 
@@ -167,12 +199,12 @@ public class Program
         }
         else
         {
-            await botClient.SendTextMessageAsync(AdminChatId, "uncorrect data, try again /addchat later", cancellationToken: cancellationToken);
+            await botClient.SendTextMessageAsync(Constants.AdminChatId, "uncorrect data, try again /addchat later", cancellationToken: cancellationToken);
         }
     }
 
     public static async Task PreAddChatId(CancellationToken cancellationToken)
     {
-        await botClient.SendTextMessageAsync(AdminChatId, "send me your chat id and name separated by space", cancellationToken: cancellationToken);
+        await botClient.SendTextMessageAsync(Constants.AdminChatId, "send me your chat id and name separated by space", cancellationToken: cancellationToken);
     }
 }

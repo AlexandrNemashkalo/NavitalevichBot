@@ -19,9 +19,8 @@ internal class DatabaseContext
         if (!File.Exists(dbPath))
         {
             File.WriteAllBytes(dbName, new byte[0]);
-
-            InitializeDatabase();
         }
+        InitializeDatabase();
     }
 
     public async Task<bool> IsSeenMedia(string mediaId, long chatId)
@@ -208,6 +207,54 @@ internal class DatabaseContext
         }
     }
 
+    public void AddSessionMessage(int messageId, long chatId)
+    {
+        using (var connection = new SqliteConnection(_connectionString))
+        {
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText =
+            @"
+            INSERT INTO SessionMessages(ChatId, MessageId)
+            VALUES(@chatId,@messageId)
+            ";
+
+            command.Parameters.Add("@chatId", SqliteType.Integer).Value = chatId;
+            command.Parameters.Add("@messageId", SqliteType.Integer).Value = messageId;
+            command.CommandType = CommandType.Text;
+            command.ExecuteNonQuery();
+        }
+    }
+
+    public int? GetSessionMessage(long chatId)
+    {
+        using (var connection = new SqliteConnection(_connectionString))
+        {
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText =
+            @"
+            SELECT MessageId
+            FROM SessionMessages
+            WHERE 1=1
+                AND ChatId = $chatId
+            ";
+            command.Parameters.AddWithValue("$chatId", chatId);
+
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var messageId = reader.GetString(0);
+                    return int.Parse(messageId);
+                }
+            }
+            return null;
+        }
+    }
+
     private void InitializeDatabase()
     {
         using (var db = new SqliteConnection(_connectionString))
@@ -272,7 +319,28 @@ internal class DatabaseContext
             var createTable4 = new SqliteCommand(tableCommand4, db);
             createTable4.ExecuteReader();
         }
-        AddAvaliableChatId(656355529, "navitalevichadmin");
+
+        var task = IsAvaliableChatId(Constants.AdminChatId);
+        task.Wait();
+        if (!task.Result)
+        {
+            AddAvaliableChatId(Constants.AdminChatId, Constants.AdminName);
+        }
+
+        using (var db = new SqliteConnection(_connectionString))
+        {
+            db.Open();
+
+            var tableCommand5 = @"
+                CREATE TABLE IF NOT EXISTS SessionMessages
+                (
+                    ChatId INTEGER PRIMARY KEY ,
+                    MessageId INTEGER
+                )";
+
+            var createTable5 = new SqliteCommand(tableCommand5, db);
+            createTable5.ExecuteReader();
+        }
     }
 }
 

@@ -9,17 +9,25 @@ using System.Text.Json;
 namespace NavitalevichBot;
 internal class InstClientFactory
 {
-    public static async Task<IInstaApi> CreateAndLoginInstClient(string username, string password)
+    public static async Task<IInstaApi> CreateAndLoginInstClient(string username, string password, InstSessionHandler instFileSessionHandler)
     {
+        var stateData = instFileSessionHandler.GetStateData();
+        if(username == null && password == null)
+        {
+            username = stateData.UserSession.UserName;
+            password = stateData.UserSession.Password;
+        }
+
+        Console.WriteLine(username);
         var userSession = UserSessionData.ForUsername(username).WithPassword(password);
         var isSucceeded = true;
         var instaApi = InstaApiBuilder.CreateBuilder()
             .SetUser(userSession)
-            .SetDevice(AndroidDeviceGenerator.GetByName("honor-8lite"))
             //.UseLogger(new DebugLogger(LogLevel.All))
             .SetRequestDelay(RequestDelay.FromSeconds(0, 1))
             // Session handler, set a file path to save/load your state/session data
-            .SetSessionHandler(new InstFileSessionHandler() { FilePath = $"{username}_bot.bin" })
+            //.SetSessionHandler(new FileSessionHandler() { FilePath = $"{username}_bot.bin" })
+            .SetSessionHandler(instFileSessionHandler)
             .Build();
 
         //Load session
@@ -78,17 +86,6 @@ internal class InstClientFactory
                 else
                 {
                     Console.WriteLine("Login error: " + JsonSerializer.Serialize(logInResult.Info));
-                    await instaApi.SendRequestsBeforeLoginAsync();
-
-                    var isError = true;
-                    while (isError)
-                    {
-                        await instaApi.SendRequestsBeforeLoginAsync();
-                        await Task.Delay(10000);
-                        var logInResult2 = await instaApi.LoginAsync();
-                        Console.WriteLine($"Login error2 {logInResult2.Succeeded} : " + JsonSerializer.Serialize(logInResult2.Info));
-                        isError = !logInResult2.Succeeded;
-                    }
                 }
             }
         }
