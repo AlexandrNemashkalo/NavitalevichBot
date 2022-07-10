@@ -10,7 +10,6 @@ internal class InstClientFactory
 {
     public static async Task<IInstaApi> CreateAndLoginInstClient(string username, string password)
     {
-        Console.WriteLine($"username:{username}; password:{password};");
         var userSession = UserSessionData.ForUsername(username).WithPassword(password);
         var isSucceeded = true;
         var instaApi = InstaApiBuilder.CreateBuilder()
