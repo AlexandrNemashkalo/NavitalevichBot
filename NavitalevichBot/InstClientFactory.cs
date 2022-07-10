@@ -14,7 +14,7 @@ internal class InstClientFactory
         var isSucceeded = true;
         var instaApi = InstaApiBuilder.CreateBuilder()
             .SetUser(userSession)
-            .UseLogger(new DebugLogger(LogLevel.All))
+            //.UseLogger(new DebugLogger(LogLevel.All))
             .SetRequestDelay(RequestDelay.FromSeconds(0, 1))
             // Session handler, set a file path to save/load your state/session data
             .SetSessionHandler(new FileSessionHandler() { FilePath = $"{username}_bot.bin" })
