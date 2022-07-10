@@ -77,9 +77,17 @@ internal class InstClientFactory
                 else
                 {
                     Console.WriteLine("Login error: " + JsonSerializer.Serialize(logInResult.Info));
-                    var logInResult2 = await instaApi.LoginAsync();
-                    Console.WriteLine($"Login error2 {logInResult2.Succeeded} : " + JsonSerializer.Serialize(logInResult2.Info));
-                    //return instaApi;
+                    await instaApi.SendRequestsBeforeLoginAsync();
+
+                    var isError = true;
+                    while (isError)
+                    {
+                        await instaApi.SendRequestsBeforeLoginAsync();
+                        await Task.Delay(10000);
+                        var logInResult2 = await instaApi.LoginAsync();
+                        Console.WriteLine($"Login error2 {logInResult2.Succeeded} : " + JsonSerializer.Serialize(logInResult2.Info));
+                        isError = !logInResult2.Succeeded;
+                    }
                 }
             }
         }
