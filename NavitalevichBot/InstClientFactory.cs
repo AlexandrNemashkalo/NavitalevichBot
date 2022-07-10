@@ -6,17 +6,16 @@ using InstagramApiSharp.Classes.SessionHandlers;
 namespace NavitalevichBot;
 internal class InstClientFactory
 {
-    const string StateFile = "state.bin";
     public static async Task<IInstaApi> CreateAndLoginInstClient(string username, string password)
     {
         var userSession = UserSessionData.ForUsername(username).WithPassword(password);
-
+        var isSucceeded = true;
         var instaApi = InstaApiBuilder.CreateBuilder()
             .SetUser(userSession)
             //.UseLogger(new DebugLogger(LogLevel.All))
             .SetRequestDelay(RequestDelay.FromSeconds(0, 1))
             // Session handler, set a file path to save/load your state/session data
-            .SetSessionHandler(new FileSessionHandler() { FilePath = StateFile })
+            .SetSessionHandler(new FileSessionHandler() { FilePath = $"{username}.bot.bin" })
             .Build();
 
         //Load session
@@ -36,6 +35,7 @@ internal class InstClientFactory
             }
             else
             {
+                isSucceeded = false;
                 if (logInResult.Value == InstaLoginResult.ChallengeRequired)     // 1.ChallengeRequired
                 {
                     var challenge = await instaApi.GetChallengeRequireVerifyMethodAsync();
@@ -75,7 +75,7 @@ internal class InstClientFactory
         {
             Console.WriteLine("Успешно залогинились");
         }
-        return instaApi;
+        return isSucceeded ? instaApi : null;
     }
 
     static void LoadSession(IInstaApi instaApi)

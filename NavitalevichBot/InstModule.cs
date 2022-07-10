@@ -4,6 +4,7 @@ using InstagramApiSharp.Classes.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
 using System.Collections.Concurrent;
+using System.Text.Json;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
@@ -12,19 +13,18 @@ namespace NavitalevichBot;
 
 internal class InstModule : Registry
 {
-    private readonly ITelegramBotClient _botClient;
-    private readonly IInstaApi _instaApi;
     private readonly DatabaseContext _dbContext;
-    private readonly long _chatId;
-    private const int DefaultPage = 2;
-
+    private readonly IInstaApi _instaApi;
     private static CancellationTokenSource _resetCacheToken = new CancellationTokenSource();
     private IMemoryCache _cache;
-    private ConcurrentDictionary<bool, HashSet<string>> _blackList;
-
     private string GetStoryKey(string id) => $"storyid#{id}";
-    private string GetPostKey(string id) => $"postId#{id}";
     private string GetPageKey() => "postsPage";
+
+
+    private readonly ITelegramBotClient BotClient;
+    private readonly long ChatId;
+
+    public InstModuleSettings Settings { get; set; }
 
     public InstModule(
         IInstaApi instaApi, 
@@ -33,52 +33,108 @@ internal class InstModule : Registry
         long chatId, 
         CancellationToken cancellationToken)
     {
-        _botClient = botClient;
+        BotClient = botClient;
         _instaApi = instaApi;
         _dbContext = dbContext;
-        _chatId = chatId;
+        ChatId = chatId;
 
-        _blackList = new ConcurrentDictionary<bool, HashSet<string>>()
-        {
-            [true] = _dbContext.GetBlackList().ToHashSet(),
-        };
-
+        Settings = InstModuleSettings.Deffault;
         var options = new MemoryCacheOptions();
         _cache = new MemoryCache(options);
 
-        SetPage(DefaultPage);
-        Schedule(async () => { await SendPosts(DefaultPage, cancellationToken); }).WithName(nameof(SendPosts)).ToRunNow().AndEvery(1).Hours();
-        Schedule(async () => { await SendStories(cancellationToken); }).WithName(nameof(SendStories)).ToRunNow().AndEvery(1).Hours();
+        SetPage(Settings.PostsCountPage);
 
-        Console.WriteLine("run12345");
+        Schedule(async () => { if (Settings.IsGetPosts) { await SendPostsDo(Settings.PostsCountPage, cancellationToken); } })
+            .WithName(nameof(SendPostsDo))
+            .ToRunNow()
+            .AndEvery(Settings.PostsPeriodHours).Hours();
+
+        Schedule(async () => { if (Settings.IsGetStories) { await SendStoriesDo(cancellationToken); } })
+            .WithName(nameof(SendStoriesDo))
+            .ToRunNow()
+            .AndEvery(Settings.StoryPeriodHours).Hours();
+
+        Console.WriteLine("run");
     }
 
-    private void SetPage(int page)
+    public async Task GetInfo(CancellationToken cancellationToken)
     {
-        var opt = new MemoryCacheEntryOptions()
+        var blackList = (await _dbContext.GetBlackList(ChatId)).ToHashSet();
+
+        var message = ""
+            + $"⚙️ Bot settings:\n"
+            + $"get stories: {Settings.IsGetStories}\n"
+            + $"period: {Settings.StoryPeriodHours} h\n"
+            + $"\n"
+            + $"get posts: {Settings.IsGetPosts}\n"
+            + $"period: {Settings.PostsPeriodHours} h\n"
+            + $"page: {Settings.PostsCountPage}\n"
+            + $"\n"
+            + $"🚫 Black list:\n"
+            + $"{string.Join(", ", blackList)}";
+        await BotClient.SendTextMessageAsync(ChatId, message, cancellationToken: cancellationToken);
+    }
+    public async Task PreSetSettingsInfo(CancellationToken cancellationToken)
+    {
+        var blackList = (await _dbContext.GetBlackList(ChatId)).ToHashSet();
+        var options = new JsonSerializerOptions
         {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30),
+            WriteIndented = true
         };
-        opt.AddExpirationToken(new CancellationChangeToken(_resetCacheToken.Token));
-        _cache.Set(GetPageKey(), page, opt);
+        var message = ""
+            + $"⚙️ Send me the settings in the format below:\n"
+            + $"\n"
+            + $"{JsonSerializer.Serialize(Settings, options)}";
+
+        await BotClient.SendTextMessageAsync(ChatId, message, cancellationToken: cancellationToken);
     }
 
-    public async Task LikeMedia(int messageid, CancellationToken cancellationToken)
+    public async Task SetSettings(string message, CancellationToken cancellationToken)
     {
-        var mediaId = _dbContext.GetMediaId(messageid);
+        InstModuleSettings settings = null;
+        try
+        {
+            settings = JsonSerializer.Deserialize<InstModuleSettings>(message);
+            if(settings == null)
+            {
+                throw new Exception();
+            }
+        }
+        catch (Exception ex)
+        {
+            await BotClient.SendTextMessageAsync(ChatId, "error, uncorrect format", cancellationToken: cancellationToken);
+            return;
+        }
+
+        settings.PostsCountPage = settings.PostsCountPage > 10 ? 10 : settings.PostsCountPage;
+        settings.PostsCountPage = settings.PostsCountPage < 1 ? 1 : settings.PostsCountPage;
+        settings.PostsPeriodHours = settings.PostsPeriodHours < 1 ? 1 : settings.PostsPeriodHours;
+        settings.StoryPeriodHours = settings.StoryPeriodHours < 1 ? 1 : settings.StoryPeriodHours;
+
+        Settings = settings;
+        await BotClient.SendTextMessageAsync(ChatId, "success", cancellationToken: cancellationToken);
+    }
+
+    public async Task LikeMedia(int? messageid, CancellationToken cancellationToken)
+    {
+        if(messageid == null)
+        {
+            await BotClient.SendTextMessageAsync(ChatId, "error, need reply message", cancellationToken: cancellationToken);
+            return;
+        }
+        var mediaId = await _dbContext.GetMediaIdByMessageId(messageid.Value, ChatId);
 
         var result = await _instaApi.MediaProcessor.LikeMediaAsync(mediaId);
         if(result.Succeeded && result.Value)
         {
-            await _botClient.SendTextMessageAsync(_chatId, "success", cancellationToken: cancellationToken);
+            await BotClient.SendTextMessageAsync(ChatId, "success", cancellationToken: cancellationToken);
         }
     }
 
     public async Task AddUserToBlackList(string userName, CancellationToken cancellationToken)
     {
-        _dbContext.AddUserToBlackList(userName);
-        _blackList[true].Add(userName);
-        await _botClient.SendTextMessageAsync(_chatId, "success", cancellationToken: cancellationToken);
+        await _dbContext.AddUserToBlackList(userName, ChatId);
+        await BotClient.SendTextMessageAsync(ChatId, "success", cancellationToken: cancellationToken);
     }
 
     public async Task ResetCache(CancellationToken cancellationToken)
@@ -91,23 +147,54 @@ internal class InstModule : Registry
 
         _resetCacheToken = new CancellationTokenSource();
         SetPage(1);
-        await _botClient.SendTextMessageAsync(_chatId, "success reset ceche", cancellationToken: cancellationToken);
+        await BotClient.SendTextMessageAsync(ChatId, "success reset ceche", cancellationToken: cancellationToken);
     }
 
     public async Task SendStories(CancellationToken cancellationToken)
+    {
+        var result = await SendStoriesDo(cancellationToken);
+        if (!result)
+        {
+            await BotClient.SendTextMessageAsync(ChatId, "the stories are over", cancellationToken: cancellationToken);
+        }
+    }
+
+    public async Task SendPosts(CancellationToken cancellationToken)
+    {
+        int currentPage = 1; ;
+        if (_cache.TryGetValue<int>(GetPageKey(), out var page))
+        {
+            currentPage = page + 1;
+            SetPage(page + 1);
+        }
+        else
+        {
+            SetPage(1);
+        }
+        var result = await SendPostsDo(currentPage, cancellationToken);
+        if (!result)
+        {
+            await BotClient.SendTextMessageAsync(ChatId, "the new posts are over", cancellationToken: cancellationToken);
+        }
+    }
+
+
+    private async Task<bool> SendStoriesDo(CancellationToken cancellationToken)
     {
         var stories = await _instaApi.StoryProcessor.GetStoryFeedAsync();
 
         if (!stories.Succeeded)
         {
             Console.WriteLine(stories.Info.Message);
-            return;
+            await BotClient.SendTextMessageAsync(ChatId, "some error", cancellationToken: cancellationToken);
+            return true;
         }
 
         var hasNewMedia = false;
+        var blackList = (await _dbContext.GetBlackList(ChatId)).ToHashSet();
         foreach (var story in stories.Value.Items)
         {
-            if (_blackList[true].Contains(story.User.UserName))
+            if (blackList.Contains(story.User.UserName))
             {
                 continue;
             }
@@ -168,7 +255,7 @@ internal class InstModule : Registry
                         if(mediasPage?.Any() == true)
                         {
                             i++;
-                            await _botClient.SendMediaGroupAsync(_chatId, mediasPage);
+                            await BotClient.SendMediaGroupAsync(ChatId, mediasPage);
                             hasNewMedia = true;
                             await Task.Delay(100);
                         }
@@ -185,29 +272,10 @@ internal class InstModule : Registry
                 }
             }
         }
-        if (!hasNewMedia)
-        {
-            await _botClient.SendTextMessageAsync(_chatId, "the stories are over", cancellationToken: cancellationToken);
-        }
+        return hasNewMedia;
     }
 
-    public async Task SendPosts(CancellationToken cancellationToken)
-    {
-        int currentPage = 1; ;
-        if (_cache.TryGetValue<int>(GetPageKey(), out var page))
-        {
-            currentPage = page + 1;
-            SetPage(page + 1);
-        }
-        else
-        {
-            SetPage(1);
-        }
-        await SendPosts(currentPage, cancellationToken);
-    }
-
-
-    private async Task SendPosts(int page, CancellationToken cancellationToken)
+    private async Task<bool> SendPostsDo(int page, CancellationToken cancellationToken)
     {
         var newFeeds = await _instaApi.FeedProcessor.GetUserTimelineFeedAsync(
             InstagramApiSharp.PaginationParameters.MaxPagesToLoad(page));
@@ -215,30 +283,25 @@ internal class InstModule : Registry
         if (!newFeeds.Succeeded)
         {
             Console.WriteLine("Error GetUserTimelineFeedAsync: " + newFeeds.Info.Message);
-            await _botClient.SendTextMessageAsync(_chatId, "inst error: " + newFeeds.Info.Message, cancellationToken: cancellationToken);
-            return;
+            await BotClient.SendTextMessageAsync(ChatId, "inst error: " + newFeeds.Info.Message, cancellationToken: cancellationToken);
+            return true;
         }
         if(newFeeds.Value.MediaItemsCount == 0)
         {
-            return;
+            return false;
         }
 
-        Console.WriteLine($"Media posts count: {newFeeds.Value.MediaItemsCount}");
         var hasNewMedia = false;
+        var blackList = (await _dbContext.GetBlackList(ChatId)).ToHashSet();
+        var mediaIds = new List<string>();
         foreach (var media in newFeeds.Value.Medias)
         {
-            if (_cache.Get(GetPostKey(media.Pk)) != null || _blackList[true].Contains(media.User.UserName))
+            if (blackList.Contains(media.User.UserName) || await _dbContext.IsSeenMedia(media.Pk, ChatId))
             {
                 continue;
             }
 
-            var opt = new MemoryCacheEntryOptions()
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(2),
-            };
-            opt.AddExpirationToken(new CancellationChangeToken(_resetCacheToken.Token));
-            _cache.Set(GetPostKey(media.Pk), true, opt);
-            
+            mediaIds.Add(media.Pk);
             var urs = new List<(bool, Uri)>();
             if (media.Carousel?.Any() == true)
             {
@@ -270,9 +333,9 @@ internal class InstModule : Registry
             {
                 try
                 {
-                    var response = await _botClient.SendMediaGroupAsync(_chatId, medias, cancellationToken:cancellationToken);
+                    var response = await BotClient.SendMediaGroupAsync(ChatId, medias, cancellationToken:cancellationToken);
 
-                    _dbContext.AddMediaToMessage(response.First().MessageId, media.Pk);
+                    await _dbContext.AddMediaToMessage(response.First().MessageId, media.Pk, ChatId);
                     hasNewMedia = true;
                     await Task.Delay(100);
                 }
@@ -281,8 +344,8 @@ internal class InstModule : Registry
                     try
                     {
                         var photos = medias.Where(x => x is InputMediaPhoto);
-                        var response = await _botClient.SendMediaGroupAsync(_chatId, photos, cancellationToken: cancellationToken);
-                        _dbContext.AddMediaToMessage(response.First().MessageId, media.Pk);
+                        var response = await BotClient.SendMediaGroupAsync(ChatId, photos, cancellationToken: cancellationToken);
+                        await _dbContext.AddMediaToMessage(response.First().MessageId, media.Pk, ChatId);
                         hasNewMedia = true;
                         await Task.Delay(100);
                     }
@@ -294,10 +357,11 @@ internal class InstModule : Registry
                 }
             }
         }
-        if (!hasNewMedia)
+        if (mediaIds.Any())
         {
-            await _botClient.SendTextMessageAsync(_chatId, "the new posts are over", cancellationToken: cancellationToken);
+            await _dbContext.AddSeenMedia(mediaIds, ChatId);
         }
+        return hasNewMedia;
     }
 
     private static List<IAlbumInputMedia> GetAlbumInputMedias(List<(bool,Uri)> urs, string caption)
@@ -329,6 +393,16 @@ internal class InstModule : Registry
             }
         }
         return medias;
+    }
+
+    private void SetPage(int page)
+    {
+        var opt = new MemoryCacheEntryOptions()
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30),
+        };
+        opt.AddExpirationToken(new CancellationChangeToken(_resetCacheToken.Token));
+        _cache.Set(GetPageKey(), page, opt);
     }
 
 }

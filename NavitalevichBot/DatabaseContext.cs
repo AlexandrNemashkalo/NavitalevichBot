@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.Sqlite;
 using System.Data;
 using System.Reflection;
+using System.Text;
 
 namespace NavitalevichBot;
 
@@ -9,7 +10,7 @@ internal class DatabaseContext
     private readonly string _connectionString;
     public DatabaseContext()
     {
-        var dbName = "sqlite.db";
+        var dbName = "navitalevichbot.db";
         var asm = Assembly.GetExecutingAssembly();
         var dbPath = Path.Combine(Path.GetDirectoryName(asm.Location), dbName);
 
@@ -23,7 +24,7 @@ internal class DatabaseContext
         }
     }
 
-    public List<string> GetBlackList()
+    public async Task<bool> IsSeenMedia(string mediaId, long chatId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {
@@ -33,11 +34,64 @@ internal class DatabaseContext
             command.CommandText =
             @"
             SELECT *
-            FROM BlackList
+            FROM SeenMedia
+            WHERE 1=1
+                AND ChatId = $chatId
+                AND MediaId = $mediaId
             ";
 
+            command.Parameters.AddWithValue("$chatId", chatId);
+            command.Parameters.AddWithValue("$mediaId", mediaId);
+
+            var result = await command.ExecuteScalarAsync();
+            return result != null;
+        }
+    }
+
+    public async Task AddSeenMedia(List<string> mediaIds, long chatId)
+    {
+        using (var connection = new SqliteConnection(_connectionString))
+        {
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            var commandText = new StringBuilder(@"
+            INSERT INTO SeenMedia(MediaId, ChatId)
+            VALUES ");
+
+            var i = 1;
+            foreach (var mediaId in mediaIds)
+            {
+                commandText.Append($"(@mediaId{i}, @chatId{i}), ");
+                command.Parameters.Add($"@mediaId{i}", SqliteType.Text).Value = mediaId;
+                command.Parameters.Add($"@chatId{i}", SqliteType.Integer).Value = chatId;
+                i++;
+            }
+            commandText.Remove(commandText.Length - 2, 2);
+            command.CommandText = commandText.ToString();
+            command.CommandType = CommandType.Text;
+            await command.ExecuteNonQueryAsync();
+        }
+    }
+
+    public async Task<List<string>> GetBlackList(long chatId)
+    {
+        using (var connection = new SqliteConnection(_connectionString))
+        {
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText =
+            @"
+            SELECT UserName
+            FROM BlackList
+            WHERE 1=1
+                AND ChatId = $chatId
+            ";
+            command.Parameters.AddWithValue("$chatId", chatId);
+
             var blackList = new List<string>();
-            using (var reader = command.ExecuteReader())
+            using (var reader = await command.ExecuteReaderAsync())
             {
                 while (reader.Read())
                 {
@@ -49,7 +103,7 @@ internal class DatabaseContext
         }
     }
 
-    public void AddUserToBlackList(string userName)
+    public async Task AddUserToBlackList(string userName, long chatId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {
@@ -58,16 +112,17 @@ internal class DatabaseContext
             var command = connection.CreateCommand();
             command.CommandText =
             @"
-            INSERT INTO BlackList(UserName)
-            VALUES(@param1)
+            INSERT INTO BlackList(UserName, ChatId)
+            VALUES(@userName,@chatId)
             ";
-            command.Parameters.Add("@param1", SqliteType.Text).Value = userName;
+            command.Parameters.Add("@userName", SqliteType.Text).Value = userName;
+            command.Parameters.Add("@chatId", SqliteType.Integer).Value = chatId;
             command.CommandType = CommandType.Text;
-            command.ExecuteNonQuery();
+            await command.ExecuteNonQueryAsync();
         }
     }
 
-    public void AddMediaToMessage(int messageId, string mediaId)
+    public async Task AddMediaToMessage(int messageId, string mediaId, long chatId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {
@@ -76,17 +131,18 @@ internal class DatabaseContext
             var command = connection.CreateCommand();
             command.CommandText =
             @"
-            INSERT INTO MediaToMessage(MessageId, MediaId)
-            VALUES(@param1,@param2)
+            INSERT INTO MessageToMedia(MessageId, MediaId, ChatId)
+            VALUES(@messageId,@mediaId, @chatId)
             ";
-            command.Parameters.Add("@param1", SqliteType.Integer).Value = messageId;
-            command.Parameters.Add("@param2", SqliteType.Text).Value = mediaId;
+            command.Parameters.Add("@messageId", SqliteType.Integer).Value = messageId;
+            command.Parameters.Add("@mediaId", SqliteType.Text).Value = mediaId;
+            command.Parameters.Add("@chatId", SqliteType.Integer).Value = chatId;
             command.CommandType = CommandType.Text;
-            command.ExecuteNonQuery();
+            await command.ExecuteNonQueryAsync();
         }
     }
 
-    public string GetMediaId(int massageId)
+    public async Task<string> GetMediaIdByMessageId(int messageId, long chatId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {
@@ -96,19 +152,59 @@ internal class DatabaseContext
             command.CommandText =
             @"
             SELECT MediaId
-            FROM MediaToMessage
-            WHERE MessageId = $id
+            FROM MessageToMedia
+            WHERE 1=1
+                AND MessageId = $messageId
+                AND ChatId = $chatId
             ";
-            command.Parameters.AddWithValue("$id", massageId);
+            command.Parameters.AddWithValue("$messageId", messageId);
+            command.Parameters.AddWithValue("$chatId", chatId);
 
-            using (var reader = command.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    return reader.GetString(0);
-                }
-            }
-            return null;
+
+            var result = await command.ExecuteScalarAsync();
+            return (string) result;
+        }
+    }
+
+    public void AddAvaliableChatId(long chatId, string name)
+    {
+        using (var connection = new SqliteConnection(_connectionString))
+        {
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText =
+            @"
+            INSERT INTO AvaliableChats(ChatId, Name)
+            VALUES(@chatId,@name)
+            ";
+          
+            command.Parameters.Add("@chatId", SqliteType.Integer).Value = chatId;
+            command.Parameters.Add("@name", SqliteType.Text).Value = name;
+            command.CommandType = CommandType.Text;
+            command.ExecuteNonQuery();
+        }
+    }
+
+    public async Task<bool> IsAvaliableChatId(long chatId)
+    {
+        using (var connection = new SqliteConnection(_connectionString))
+        {
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText =
+            @"
+            SELECT *
+            FROM AvaliableChats
+            WHERE 1=1
+                AND ChatId = $chatId
+            ";
+            command.Parameters.AddWithValue("$chatId", chatId);
+
+            var result = await command.ExecuteScalarAsync();
+
+            return result != null;
         }
     }
 
@@ -118,8 +214,13 @@ internal class DatabaseContext
         {
             db.Open();
 
-            String tableCommand1 = "CREATE TABLE IF NOT EXISTS " +
-                "BlackList (UserName NVARCHAR(2048) PRIMARY KEY)";
+            var tableCommand1 = @"
+                CREATE TABLE IF NOT EXISTS BlackList
+                (
+                    UserName NVARCHAR(2048), 
+                    ChatId INTEGER,
+                    PRIMARY KEY (UserName, ChatId)
+                )";
 
             SqliteCommand createTable1 = new SqliteCommand(tableCommand1, db);
             createTable1.ExecuteReader();
@@ -128,12 +229,50 @@ internal class DatabaseContext
         {
             db.Open();
 
-            String tableCommand2 = "CREATE TABLE IF NOT EXISTS " +
-                "MediaToMessage (MessageId INTEGER PRIMARY KEY, MediaId NVARCHAR(2048))";
+            var tableCommand2 = @"
+                CREATE TABLE IF NOT EXISTS MessageToMedia
+                (
+                    MessageId INTEGER,
+                    ChatId INTEGER,
+                    MediaId NVARCHAR(2048),
+                    PRIMARY KEY (MessageId, ChatId)
+                )";
 
             var createTable2 = new SqliteCommand(tableCommand2, db);
             createTable2.ExecuteReader();
         }
+
+        using (var db = new SqliteConnection(_connectionString))
+        {
+            db.Open();
+
+            var seenMedia = @"
+                CREATE TABLE IF NOT EXISTS SeenMedia
+                (
+                    MediaId NVARCHAR(2048),
+                    ChatId INTEGER,
+                    PRIMARY KEY (MediaId, ChatId)
+                )";
+
+            var createTable3 = new SqliteCommand(seenMedia, db);
+            createTable3.ExecuteReader();
+        }
+
+        using (var db = new SqliteConnection(_connectionString))
+        {
+            db.Open();
+
+            var tableCommand4 = @"
+                CREATE TABLE IF NOT EXISTS AvaliableChats
+                (
+                    ChatId INTEGER PRIMARY KEY,
+                    Name NVARCHAR(2048)
+                )";
+
+            var createTable4 = new SqliteCommand(tableCommand4, db);
+            createTable4.ExecuteReader();
+        }
+        AddAvaliableChatId(656355529, "navitalevichadmin");
     }
 }
 
