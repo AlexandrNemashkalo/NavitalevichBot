@@ -1,6 +1,7 @@
 ﻿using InstagramApiSharp.API;
 using InstagramApiSharp.API.Builder;
 using InstagramApiSharp.Classes;
+using InstagramApiSharp.Classes.Android.DeviceInfo;
 using InstagramApiSharp.Classes.SessionHandlers;
 using InstagramApiSharp.Logger;
 using System.Text.Json;
@@ -14,10 +15,11 @@ internal class InstClientFactory
         var isSucceeded = true;
         var instaApi = InstaApiBuilder.CreateBuilder()
             .SetUser(userSession)
+            .SetDevice(AndroidDeviceGenerator.GetByName("honor-8lite"))
             //.UseLogger(new DebugLogger(LogLevel.All))
             .SetRequestDelay(RequestDelay.FromSeconds(0, 1))
             // Session handler, set a file path to save/load your state/session data
-            .SetSessionHandler(new FileSessionHandler() { FilePath = $"{username}_bot.bin" })
+            .SetSessionHandler(new InstFileSessionHandler() { FilePath = $"{username}_bot.bin" })
             .Build();
 
         //Load session
