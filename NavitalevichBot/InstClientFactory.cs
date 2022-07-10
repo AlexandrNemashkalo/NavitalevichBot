@@ -27,10 +27,11 @@ internal class InstClientFactory
             // wait 5 seconds
             await Task.Delay(5000);
             var logInResult = await instaApi.LoginAsync();
-            Console.WriteLine(logInResult.Value);
+            Console.WriteLine($"{logInResult.Value} - {logInResult.Succeeded}");
             if (logInResult.Succeeded)
             {
-                await instaApi.SendRequestsAfterLoginAsync();
+                var result = await instaApi.SendRequestsAfterLoginAsync();
+                Console.WriteLine($"result RequestsAfterLogin: {result}");
                 SaveSession(instaApi);
             }
             else
@@ -75,6 +76,7 @@ internal class InstClientFactory
         {
             Console.WriteLine("Успешно залогинились");
         }
+        Console.WriteLine($"isSucceeded: {isSucceeded}");
         return isSucceeded ? instaApi : null;
     }
 
