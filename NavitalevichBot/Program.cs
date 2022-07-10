@@ -36,6 +36,7 @@ public class Program
     public static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
         var chatId = update?.Message?.Chat?.Id;
+        Console.WriteLine($"{ chatId} {DateTime.Now}");
 
         if (chatId == null) return;
         if (update.Type != UpdateType.Message) return;
@@ -158,7 +159,7 @@ public class Program
             _ => exception.ToString()
         };
 
-        Console.WriteLine(ErrorMessage);
+        Console.WriteLine($"{ErrorMessage}  {DateTime.Now}");
         return Task.CompletedTask;
     }
 
