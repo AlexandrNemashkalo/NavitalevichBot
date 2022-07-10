@@ -4,4 +4,4 @@
 .idea/
 .vs/
 *navitalevichbot.db
-*.bot.bin
+*bot.bin

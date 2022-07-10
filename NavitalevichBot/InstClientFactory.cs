@@ -15,7 +15,7 @@ internal class InstClientFactory
             //.UseLogger(new DebugLogger(LogLevel.All))
             .SetRequestDelay(RequestDelay.FromSeconds(0, 1))
             // Session handler, set a file path to save/load your state/session data
-            .SetSessionHandler(new FileSessionHandler() { FilePath = $"{username}.bot.bin" })
+            .SetSessionHandler(new FileSessionHandler() { FilePath = $"{username}_bot.bin" })
             .Build();
 
         //Load session
