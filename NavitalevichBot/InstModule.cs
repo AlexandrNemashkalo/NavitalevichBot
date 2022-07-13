@@ -3,7 +3,6 @@ using InstagramApiSharp.API;
 using InstagramApiSharp.Classes.Models;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
-using System.Collections.Concurrent;
 using System.Text.Json;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
@@ -17,7 +16,6 @@ internal class InstModule : Registry
     private readonly IInstaApi _instaApi;
     private static CancellationTokenSource _resetCacheToken = new CancellationTokenSource();
     private IMemoryCache _cache;
-    private string GetStoryKey(string id) => $"storyid#{id}";
     private string GetPageKey() => "postsPage";
 
 
@@ -192,6 +190,8 @@ internal class InstModule : Registry
 
         var hasNewMedia = false;
         var blackList = (await _dbContext.GetBlackList(ChatId)).ToHashSet();
+        var storyItemIds = stories.Value.Items.SelectMany(x => x.Items).Select(x => x.Pk);
+        var unSeenStories = await _dbContext.GetUnSeenStories(storyItemIds, ChatId);
         foreach (var story in stories.Value.Items)
         {
             if (blackList.Contains(story.User.UserName))
@@ -218,17 +218,10 @@ internal class InstModule : Registry
 
             foreach (var storyItem in storiesList)
             {
-                if(_cache.Get(GetStoryKey(storyItem.Id)) != null)
+                if (!unSeenStories.Contains(storyItem.Pk))
                 {
                     continue;
                 }
-
-                var opt = new MemoryCacheEntryOptions()
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(1),
-                };
-                opt.AddExpirationToken(new CancellationChangeToken(_resetCacheToken.Token));
-                _cache.Set(GetStoryKey(storyItem.Id), true, opt);
 
                 if (storyItem.VideoList?.Any() == true && storyItem.HasAudio)
                 {
@@ -272,6 +265,7 @@ internal class InstModule : Registry
                 }
             }
         }
+        await _dbContext.AddSeenStories(unSeenStories, ChatId);
         return hasNewMedia;
     }
 
@@ -404,6 +398,5 @@ internal class InstModule : Registry
         opt.AddExpirationToken(new CancellationChangeToken(_resetCacheToken.Token));
         _cache.Set(GetPageKey(), page, opt);
     }
-
 }
 

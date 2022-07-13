@@ -7,25 +7,33 @@ namespace NavitalevichBot;
 
 internal class DatabaseContext
 {
-    private readonly string _connectionString;
+    private readonly string _mainConnectionString;
+    private readonly string _authConnectionString;
     public DatabaseContext()
     {
-        var dbName = "navitalevichbot.db";
+        var mainDbName = "navitalevichbot.db";
+        var authDbName = "auth.db";
         var asm = Assembly.GetExecutingAssembly();
-        var dbPath = Path.Combine(Path.GetDirectoryName(asm.Location), dbName);
+        var dbPathMain = Path.Combine(Path.GetDirectoryName(asm.Location), mainDbName);
+        var dbPathAuth = Path.Combine(Path.GetDirectoryName(asm.Location), authDbName);
 
-        _connectionString = $"Filename ={ dbPath }";
+        _mainConnectionString = $"Filename ={ dbPathMain }";
+        _authConnectionString = $"Filename ={ dbPathAuth }";
 
-        if (!File.Exists(dbPath))
+        if (!File.Exists(dbPathMain))
         {
-            File.WriteAllBytes(dbName, new byte[0]);
+            File.WriteAllBytes(mainDbName, new byte[0]);
+        }
+        if (!File.Exists(dbPathAuth))
+        {
+            File.WriteAllBytes(dbPathAuth, new byte[0]);
         }
         InitializeDatabase();
     }
 
     public async Task<bool> IsSeenMedia(string mediaId, long chatId)
     {
-        using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_mainConnectionString))
         {
             connection.Open();
 
@@ -49,7 +57,7 @@ internal class DatabaseContext
 
     public async Task AddSeenMedia(List<string> mediaIds, long chatId)
     {
-        using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_mainConnectionString))
         {
             connection.Open();
 
@@ -73,9 +81,69 @@ internal class DatabaseContext
         }
     }
 
+    public async Task AddSeenStories(IEnumerable<long> storyIds, long chatId)
+    {
+        using (var connection = new SqliteConnection(_mainConnectionString))
+        {
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            var commandText = new StringBuilder(@"
+            INSERT INTO SeenStories(StoryId, ChatId)
+            VALUES ");
+
+            var i = 1;
+            foreach (var mediaId in storyIds)
+            {
+                commandText.Append($"(@storyId{i}, @chatId{i}), ");
+                command.Parameters.Add($"@storyId{i}", SqliteType.Integer).Value = mediaId;
+                command.Parameters.Add($"@chatId{i}", SqliteType.Integer).Value = chatId;
+                i++;
+            }
+            commandText.Remove(commandText.Length - 2, 2);
+            command.CommandText = commandText.ToString();
+            command.CommandType = CommandType.Text;
+            await command.ExecuteNonQueryAsync();
+        }
+    }
+
+    public async Task<HashSet<long>> GetUnSeenStories(IEnumerable<long> storyIds, long chatId)
+    {
+        using (var connection = new SqliteConnection(_mainConnectionString))
+        {
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText =
+            @"
+            SELECT StoryId
+            FROM SeenStories
+            WHERE 1=1
+                AND ChatId = $chatId
+                AND StoryId IN 
+            ";
+
+            command.CommandText = command.CommandText + $" ({string.Join(", ", storyIds)})";
+            command.Parameters.AddWithValue("$chatId", chatId);
+
+            var seenStories = new HashSet<long>();
+            using (var reader = await command.ExecuteReaderAsync())
+            {
+                while (reader.Read())
+                {
+                    var storyId = reader.GetString(0);
+                    seenStories.Add(long.Parse(storyId));
+                }
+            }
+
+            var result = storyIds.Except(seenStories);
+            return result.ToHashSet();
+        }
+    }
+
     public async Task<List<string>> GetBlackList(long chatId)
     {
-        using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_mainConnectionString))
         {
             connection.Open();
 
@@ -104,7 +172,7 @@ internal class DatabaseContext
 
     public async Task AddUserToBlackList(string userName, long chatId)
     {
-        using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_mainConnectionString))
         {
             connection.Open();
 
@@ -123,7 +191,7 @@ internal class DatabaseContext
 
     public async Task AddMediaToMessage(int messageId, string mediaId, long chatId)
     {
-        using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_mainConnectionString))
         {
             connection.Open();
 
@@ -144,7 +212,7 @@ internal class DatabaseContext
 
     public async Task<string> GetMediaIdByMessageId(int messageId, long chatId)
     {
-        using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_mainConnectionString))
         {
             connection.Open();
 
@@ -168,7 +236,7 @@ internal class DatabaseContext
 
     public void AddAvaliableChatId(long chatId, string name)
     {
-        using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_authConnectionString))
         {
             connection.Open();
 
@@ -188,7 +256,7 @@ internal class DatabaseContext
 
     public async Task<bool> IsAvaliableChatId(long chatId)
     {
-        using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_authConnectionString))
         {
             connection.Open();
 
@@ -210,7 +278,7 @@ internal class DatabaseContext
 
     public void AddSessionMessage(int messageId, long chatId)
     {
-        using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_authConnectionString))
         {
             connection.Open();
 
@@ -230,7 +298,7 @@ internal class DatabaseContext
 
     public int? GetSessionMessage(long chatId)
     {
-        using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_authConnectionString))
         {
             connection.Open();
 
@@ -258,7 +326,7 @@ internal class DatabaseContext
 
     private void InitializeDatabase()
     {
-        using (var db = new SqliteConnection(_connectionString))
+        using (var db = new SqliteConnection(_mainConnectionString))
         {
             db.Open();
 
@@ -273,7 +341,7 @@ internal class DatabaseContext
             SqliteCommand createTable1 = new SqliteCommand(tableCommand1, db);
             createTable1.ExecuteReader();
         }
-        using (var db = new SqliteConnection(_connectionString))
+        using (var db = new SqliteConnection(_mainConnectionString))
         {
             db.Open();
 
@@ -290,7 +358,7 @@ internal class DatabaseContext
             createTable2.ExecuteReader();
         }
 
-        using (var db = new SqliteConnection(_connectionString))
+        using (var db = new SqliteConnection(_mainConnectionString))
         {
             db.Open();
 
@@ -306,19 +374,35 @@ internal class DatabaseContext
             createTable3.ExecuteReader();
         }
 
-        using (var db = new SqliteConnection(_connectionString))
+        using (var db = new SqliteConnection(_mainConnectionString))
         {
             db.Open();
 
-            var tableCommand4 = @"
+            var seenStories = @"
+                CREATE TABLE IF NOT EXISTS SeenStories
+                (
+                    StoryId INTEGER,
+                    ChatId INTEGER,
+                    PRIMARY KEY (StoryId, ChatId)
+                )";
+
+            var createTable4 = new SqliteCommand(seenStories, db);
+            createTable4.ExecuteReader();
+        }
+
+        using (var db = new SqliteConnection(_authConnectionString))
+        {
+            db.Open();
+
+            var tableCommand5 = @"
                 CREATE TABLE IF NOT EXISTS AvaliableChats
                 (
                     ChatId INTEGER PRIMARY KEY,
                     Name NVARCHAR(2048)
                 )";
 
-            var createTable4 = new SqliteCommand(tableCommand4, db);
-            createTable4.ExecuteReader();
+            var createTable5 = new SqliteCommand(tableCommand5, db);
+            createTable5.ExecuteReader();
         }
 
         var task = IsAvaliableChatId(Constants.AdminChatId);
@@ -328,7 +412,7 @@ internal class DatabaseContext
             AddAvaliableChatId(Constants.AdminChatId, Constants.AdminName);
         }
 
-        using (var db = new SqliteConnection(_connectionString))
+        using (var db = new SqliteConnection(_authConnectionString))
         {
             db.Open();
 

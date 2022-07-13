@@ -13,7 +13,7 @@ public class Program
 {
     static bool IsLocal = false;
     static bool IsMultiple = false;
-    static ITelegramBotClient botClient { get; set; } = new TelegramBotClient(Constants.TelegramToken);
+    static ITelegramBotClient botClient { get; set; }
 
     private static ConcurrentDictionary<long, InstModule> InstModuleDict = new ConcurrentDictionary<long, InstModule>();
     private static ConcurrentDictionary<long, string> LastUpdateDict = new ConcurrentDictionary<long, string>();
@@ -51,6 +51,7 @@ public class Program
             if (!await _context.IsAvaliableChatId(chatId.Value))
             {
                 await botClient.SendTextMessageAsync(chatId, $"😩 sorry access blocked \n contact the bot admin (@navitalevich) and tell him your chatId:{chatId}", cancellationToken: cancellationToken);
+                return;
             }
 
             if (!InstModuleDict.TryGetValue(chatId.Value, out var instModule) )
@@ -177,6 +178,29 @@ public class Program
     {
         Console.WriteLine("Запущен бот ");
 
+        string token = null;
+        if(args.Length == 2)
+        {
+            if (args[0] == "-t")
+            {
+                token = args[1];
+            }
+        }
+        if (string.IsNullOrEmpty(token))
+        {
+            Console.WriteLine("Не указан токен, параметр -t");
+            return;
+        }
+        try
+        {
+            botClient = new TelegramBotClient(token);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Некорректный токен");
+            return;
+        }
+
         var path = Directory.GetCurrentDirectory();
         IsLocal = path == "C:\\Git\\NavitalevichBot\\NavitalevichBot\\bin\\Debug\\net6.0";
 
@@ -196,7 +220,7 @@ public class Program
             cancellationToken: cts.Token);
 
         var me = await botClient.GetMeAsync();
-        
+
         Console.ReadLine();
 
         cts.Cancel();
