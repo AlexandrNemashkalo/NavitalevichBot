@@ -8,7 +8,7 @@ namespace NavitalevichBot;
 
 internal static class Constants
 {
-    public const string TelegramToken = "5307410957:AAEDvwbykNd_hBUOh63upqaQfr8FPkDQJTc";
+    public const string TelegramToken = "5577874662:AAFi-MTf-V-z0qHCDYBuWRz-XzPorRiCD1Y";
 
     public const string AdminName = "navitalevichadmin";
 
