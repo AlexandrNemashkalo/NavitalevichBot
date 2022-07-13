@@ -4,6 +4,7 @@ using InstagramApiSharp.Classes;
 using InstagramApiSharp.Classes.Android.DeviceInfo;
 using InstagramApiSharp.Classes.SessionHandlers;
 using InstagramApiSharp.Logger;
+using System.Net;
 using System.Text.Json;
 
 namespace NavitalevichBot;
@@ -23,6 +24,7 @@ internal class InstClientFactory
         var isSucceeded = true;
         var instaApi = InstaApiBuilder.CreateBuilder()
             .SetUser(userSession)
+            //.UseHttpClient(httpClient)
             //.UseLogger(new DebugLogger(LogLevel.All))
             .SetRequestDelay(RequestDelay.FromSeconds(0, 1))
             // Session handler, set a file path to save/load your state/session data

@@ -1,5 +1,6 @@
 ﻿using FluentScheduler;
 using System.Collections.Concurrent;
+using System.Net;
 using System.Text.Json;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
@@ -10,7 +11,9 @@ namespace NavitalevichBot;
 
 public class Program
 {
-    static ITelegramBotClient botClient = new TelegramBotClient(Constants.TelegramToken);
+    static bool IsLocal = false;
+    static bool IsMultiple = false;
+    static ITelegramBotClient botClient { get; set; } = new TelegramBotClient(Constants.TelegramToken);
 
     private static ConcurrentDictionary<long, InstModule> InstModuleDict = new ConcurrentDictionary<long, InstModule>();
     private static ConcurrentDictionary<long, string> LastUpdateDict = new ConcurrentDictionary<long, string>();
@@ -50,7 +53,7 @@ public class Program
                 await botClient.SendTextMessageAsync(chatId, $"😩 sorry access blocked \n contact the bot admin (@navitalevich) and tell him your chatId:{chatId}", cancellationToken: cancellationToken);
             }
 
-            if (!InstModuleDict.TryGetValue(chatId.Value, out var instModule))
+            if (!InstModuleDict.TryGetValue(chatId.Value, out var instModule) )
             {
                 var lastMessage = LastUpdateDict.GetValueOrDefault(chatId.Value);
                 LastUpdateDict[chatId.Value] = messageText;
@@ -152,20 +155,31 @@ public class Program
 
     public static Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
     {
-        var ErrorMessage = exception switch
+        string errorMessage = null;
+        if (exception is ApiRequestException apiRequestException)
         {
-            ApiRequestException apiRequestException
-                => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
-            _ => exception.ToString()
-        };
-
-        Console.WriteLine($"{ErrorMessage}  {DateTime.Now}");
+            if(apiRequestException.Message == "Conflict: terminated by other getUpdates request; make sure that only one bot instance is running")
+            {
+                IsMultiple = true;
+            }
+            errorMessage = $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}";
+        }
+        else
+        {
+            errorMessage = exception.ToString();
+        }
+     
+        Console.WriteLine($"{errorMessage}  {DateTime.Now}");
         return Task.CompletedTask;
     }
 
     public static async Task Main(string[] args)
     {
         Console.WriteLine("Запущен бот ");
+
+        var path = Directory.GetCurrentDirectory();
+        IsLocal = path == "C:\\Git\\NavitalevichBot\\NavitalevichBot\\bin\\Debug\\net6.0";
+
         using var cts = new CancellationTokenSource();
 
         _context = new DatabaseContext();
@@ -174,6 +188,7 @@ public class Program
         {
             AllowedUpdates = { } 
         };
+        
         botClient.StartReceiving(
             HandleUpdateAsync,
             HandleErrorAsync,

@@ -136,6 +136,7 @@ internal class DatabaseContext
             command.Parameters.Add("@messageId", SqliteType.Integer).Value = messageId;
             command.Parameters.Add("@mediaId", SqliteType.Text).Value = mediaId;
             command.Parameters.Add("@chatId", SqliteType.Integer).Value = chatId;
+            command.CommandTimeout = 2; 
             command.CommandType = CommandType.Text;
             await command.ExecuteNonQueryAsync();
         }

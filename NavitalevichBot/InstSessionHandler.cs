@@ -58,22 +58,12 @@ internal class InstSessionHandler : ISessionHandler
             forwardMessageTask.Wait();
             var message = forwardMessageTask.Result;
 
+            var deleteMessageTask = _botClient.DeleteMessageAsync(_chatId, message.MessageId);
+            deleteMessageTask.Wait();
             if (message != null)
             {
                 StateData = message.Text;
-
-                /*var serializeOptions = new JsonSerializerOptions();
-                serializeOptions.Converters.Add(new ImmutablePointConverter());
-                serializeOptions.WriteIndented = true;*/
-
-                /*var options = new JsonSerializerOptions()
-                {
-                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-                };*/
-
                 return JsonConvert.DeserializeObject<StateData>(message.Text);
-                //return JsonSerializer.Deserialize<StateData>(message.Text, options);
-
             }
         }
         return null;
