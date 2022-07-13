@@ -191,7 +191,12 @@ internal class InstModule : Registry
         var hasNewMedia = false;
         var blackList = (await _dbContext.GetBlackList(ChatId)).ToHashSet();
         var storyItemIds = stories.Value.Items.SelectMany(x => x.Items).Select(x => x.Pk);
-        var unSeenStories = await _dbContext.GetUnSeenStories(storyItemIds, ChatId);
+
+        var unSeenStories = new HashSet<long>();
+        if (storyItemIds.Any())
+        {
+            unSeenStories = await _dbContext.GetUnSeenStories(storyItemIds, ChatId);
+        }
         foreach (var story in stories.Value.Items)
         {
             if (blackList.Contains(story.User.UserName))
@@ -265,7 +270,10 @@ internal class InstModule : Registry
                 }
             }
         }
-        await _dbContext.AddSeenStories(unSeenStories, ChatId);
+        if (unSeenStories.Any())
+        {
+            await _dbContext.AddSeenStories(unSeenStories, ChatId);
+        }
         return hasNewMedia;
     }
 
