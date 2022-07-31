@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace NavitalevichBot;
 
-internal class InstModuleSettings
+public class InstModuleSettings
 {
 
     public int StoryPeriodHours { get; set; }

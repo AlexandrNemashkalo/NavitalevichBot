@@ -1,22 +1,22 @@
 ﻿using InstagramApiSharp.API;
 using InstagramApiSharp.Classes;
-using InstagramApiSharp.Classes.SessionHandlers;
+using NavitalevichBot.Data;
+using NavitalevichBot.Services.Session;
 using Newtonsoft.Json;
 using Telegram.Bot;
-using Telegram.Bot.Types;
 
 namespace NavitalevichBot;
-internal class InstSessionHandler : ISessionHandler
+internal class MessageSessionHandler : IInstSessionHandler
 {
     private readonly ITelegramBotClient _botClient;
-    private readonly DatabaseContext _context;
+    private readonly IStorageContext _dbContext;
     private readonly long _chatId;
     private string StateData { get; set; }
 
-    public InstSessionHandler(ITelegramBotClient botClient, DatabaseContext context, long chatId)
+    public MessageSessionHandler(ITelegramBotClient botClient, IStorageContext dbContext, long chatId)
     {
         _botClient = botClient;
-        _context = context;
+        _dbContext = dbContext;
         _chatId = chatId;
     }
 
@@ -34,24 +34,32 @@ internal class InstSessionHandler : ISessionHandler
     public void Save()
     {
         var stateData = InstaApi.GetStateDataAsString();
-        var sessionMessageId = _context.GetSessionMessage(_chatId);
-        if(sessionMessageId == null)
+        var sessionMessageIdTask = _dbContext.GetSessionMessage(_chatId);
+        sessionMessageIdTask.Wait();
+        var sessionMessageId = sessionMessageIdTask.Result;
+        if (sessionMessageId == null)
         {
             var sendMessageTask = _botClient.SendTextMessageAsync(_chatId, stateData);
             sendMessageTask.Wait();
             var message = sendMessageTask.Result;
-            _context.AddSessionMessage(message.MessageId, _chatId);
+            _dbContext.AddSessionMessage(message.MessageId, _chatId);
+
+            var pinChatMessageTask = _botClient.PinChatMessageAsync(_chatId, message.MessageId);
+            pinChatMessageTask.Wait();
         }
         else
         {
-            var editMessageTaask = _botClient.EditMessageTextAsync(_chatId, sessionMessageId.Value, stateData);
-            editMessageTaask.Wait();
+            var editMessageTask = _botClient.EditMessageTextAsync(_chatId, sessionMessageId.Value, stateData);
+            editMessageTask.Wait();
         }
     }
 
     public StateData GetStateData()
     {
-        var sessionMessageId = _context.GetSessionMessage(_chatId);
+
+        var sessionMessageIdTask = _dbContext.GetSessionMessage(_chatId);
+        sessionMessageIdTask.Wait();
+        var sessionMessageId = sessionMessageIdTask.Result;
         if (sessionMessageId != null)
         {
             var forwardMessageTask = _botClient.ForwardMessageAsync(_chatId, _chatId, sessionMessageId.Value);

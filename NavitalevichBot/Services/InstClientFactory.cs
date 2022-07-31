@@ -1,36 +1,42 @@
 ﻿using InstagramApiSharp.API;
 using InstagramApiSharp.API.Builder;
 using InstagramApiSharp.Classes;
-using InstagramApiSharp.Classes.Android.DeviceInfo;
-using InstagramApiSharp.Classes.SessionHandlers;
-using InstagramApiSharp.Logger;
-using System.Net;
+using NavitalevichBot.Exceptions;
+using NavitalevichBot.Helpers;
+using NavitalevichBot.Services;
+using NavitalevichBot.Services.Session;
 using System.Text.Json;
 
 namespace NavitalevichBot;
-internal class InstClientFactory
-{
-    public static async Task<IInstaApi> CreateAndLoginInstClient(string username, string password, InstSessionHandler instFileSessionHandler)
-    {
-        var stateData = instFileSessionHandler.GetStateData();
-        if(username == null && password == null)
-        {
-            username = stateData.UserSession.UserName;
-            password = stateData.UserSession.Password;
-        }
 
+public class InstClientFactory
+{
+    private readonly ProxyManager _proxyManager;
+
+    public InstClientFactory(ProxyManager proxyManager)
+    {
+        _proxyManager = proxyManager;
+    }
+
+    public async Task<IInstaApi> CreateAndLoginInstClient(string username, string password, IInstSessionHandler instSessionHandler)
+    {        
         Console.WriteLine(username);
         var userSession = UserSessionData.ForUsername(username).WithPassword(password);
         var isSucceeded = true;
-        var instaApi = InstaApiBuilder.CreateBuilder()
+        var instaApiBuilder = InstaApiBuilder.CreateBuilder()
             .SetUser(userSession)
-            //.UseHttpClient(httpClient)
             //.UseLogger(new DebugLogger(LogLevel.All))
             .SetRequestDelay(RequestDelay.FromSeconds(0, 1))
-            // Session handler, set a file path to save/load your state/session data
             //.SetSessionHandler(new FileSessionHandler() { FilePath = $"{username}_bot.bin" })
-            .SetSessionHandler(instFileSessionHandler)
-            .Build();
+            .SetSessionHandler(instSessionHandler);
+
+        var proxy = _proxyManager.GetProxy();
+        if (proxy != null)
+        {
+            instaApiBuilder.UseHttpClientHandler(new HttpClientHandler { Proxy = proxy });
+        }
+        var instaApi = instaApiBuilder.Build();
+        
 
         //Load session
         LoadSession(instaApi);
@@ -87,7 +93,11 @@ internal class InstClientFactory
                 }
                 else
                 {
-                    Console.WriteLine("Login error: " + JsonSerializer.Serialize(logInResult.Info));
+                    if (logInResult.Info.Exception != null)
+                    {
+                        throw logInResult.Info.Exception;
+                    }
+                    Console.WriteLine("UnknownInstError");
                 }
             }
         }
@@ -99,12 +109,12 @@ internal class InstClientFactory
         return isSucceeded ? instaApi : null;
     }
 
-    static void LoadSession(IInstaApi instaApi)
+    void LoadSession(IInstaApi instaApi)
     {
         instaApi?.SessionHandler?.Load();
     }
 
-    static void SaveSession(IInstaApi instaApi)
+    void SaveSession(IInstaApi instaApi)
     {
         if (instaApi == null)
             return;
@@ -112,6 +122,5 @@ internal class InstClientFactory
             return;
         instaApi.SessionHandler.Save();
     }
-
 }
 
