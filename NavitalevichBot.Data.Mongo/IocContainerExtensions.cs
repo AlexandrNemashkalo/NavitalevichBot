@@ -9,7 +9,7 @@ public static class IocContainerExtensions
     public static ContainerBuilder AddMongoDataAccess(this ContainerBuilder builder)
     {
         builder.RegisterType<MongoStorageContext>().As<IStorageContext>().SingleInstance();
-        builder.RegisterType<MongoContext>();
+        builder.RegisterType<MongoContext>().SingleInstance();
 
         builder.RegisterType<StorageInitializer>().As<IStorageInitializer>().SingleInstance();
         builder.RegisterType<AvaliableChatsRepository>().As<IAvaliableChatsRepository>().SingleInstance();

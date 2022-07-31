@@ -39,7 +39,6 @@ public class TelegramInstService
         var result = await instModule.InstClient.MediaProcessor.LikeMediaAsync(mediaId);
         if (result.Succeeded && result.Value)
         {
-            //await _botClient.GetMeAsync 
             await _botClient.SendTextMessageAsync(chatId, "success", cancellationToken: cancellationToken);
         }
     }

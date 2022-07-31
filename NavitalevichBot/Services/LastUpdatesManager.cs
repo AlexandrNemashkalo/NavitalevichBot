@@ -17,6 +17,6 @@ public class LastUpdatesManager
 
     public void SetLastUpdate(long chatId, string updateMessage)
     {
-        _lastUpdatesDict[chatId] = updateMessage;
+        _lastUpdatesDict.AddOrUpdate(chatId, updateMessage, (x, v) => updateMessage);
     }
 }
