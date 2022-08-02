@@ -4,7 +4,7 @@ using Telegram.Bot;
 
 namespace NavitalevichBot.Actions;
 
-internal class ResetCacheAction : BaseUserAction, IBotAction
+internal class ResetCacheAction : BaseUserAction<ResetCacheAction>, IBotAction
 {
     private InstModuleManager _instModuleManager;
 

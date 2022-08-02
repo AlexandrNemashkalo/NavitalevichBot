@@ -10,14 +10,14 @@ internal class MessageSessionHandler : IInstSessionHandler
 {
     private readonly ITelegramBotClient _botClient;
     private readonly IStorageContext _dbContext;
-    private readonly long _chatId;
+    public long ChatId { get; }
     private string StateData { get; set; }
 
     public MessageSessionHandler(ITelegramBotClient botClient, IStorageContext dbContext, long chatId)
     {
         _botClient = botClient;
         _dbContext = dbContext;
-        _chatId = chatId;
+        ChatId = chatId;
     }
 
     public IInstaApi InstaApi { get; set; }
@@ -34,22 +34,22 @@ internal class MessageSessionHandler : IInstSessionHandler
     public void Save()
     {
         var stateData = InstaApi.GetStateDataAsString();
-        var sessionMessageIdTask = _dbContext.GetSessionMessage(_chatId);
+        var sessionMessageIdTask = _dbContext.GetSessionMessage(ChatId);
         sessionMessageIdTask.Wait();
         var sessionMessageId = sessionMessageIdTask.Result;
         if (sessionMessageId == null)
         {
-            var sendMessageTask = _botClient.SendTextMessageAsync(_chatId, stateData);
+            var sendMessageTask = _botClient.SendTextMessageAsync(ChatId, stateData);
             sendMessageTask.Wait();
             var message = sendMessageTask.Result;
-            _dbContext.AddSessionMessage(message.MessageId, _chatId);
+            _dbContext.AddSessionMessage(message.MessageId, ChatId);
 
-            var pinChatMessageTask = _botClient.PinChatMessageAsync(_chatId, message.MessageId);
+            var pinChatMessageTask = _botClient.PinChatMessageAsync(ChatId, message.MessageId);
             pinChatMessageTask.Wait();
         }
         else
         {
-            var editMessageTask = _botClient.EditMessageTextAsync(_chatId, sessionMessageId.Value, stateData);
+            var editMessageTask = _botClient.EditMessageTextAsync(ChatId, sessionMessageId.Value, stateData);
             editMessageTask.Wait();
         }
     }
@@ -57,16 +57,16 @@ internal class MessageSessionHandler : IInstSessionHandler
     public StateData GetStateData()
     {
 
-        var sessionMessageIdTask = _dbContext.GetSessionMessage(_chatId);
+        var sessionMessageIdTask = _dbContext.GetSessionMessage(ChatId);
         sessionMessageIdTask.Wait();
         var sessionMessageId = sessionMessageIdTask.Result;
         if (sessionMessageId != null)
         {
-            var forwardMessageTask = _botClient.ForwardMessageAsync(_chatId, _chatId, sessionMessageId.Value);
+            var forwardMessageTask = _botClient.ForwardMessageAsync(ChatId, ChatId, sessionMessageId.Value);
             forwardMessageTask.Wait();
             var message = forwardMessageTask.Result;
 
-            var deleteMessageTask = _botClient.DeleteMessageAsync(_chatId, message.MessageId);
+            var deleteMessageTask = _botClient.DeleteMessageAsync(ChatId, message.MessageId);
             deleteMessageTask.Wait();
             if (message != null)
             {

@@ -36,48 +36,6 @@ public class InstModule : Registry
         SetPage(Settings.PostsCountPage);
     }
 
-    public void ScheduleSendPosts(Func<long,int,CancellationToken,Task> sendPostsAction, CancellationToken cancellationToken)
-    {
-        Schedule(async () => 
-        {
-            try
-            {
-                if (Settings.IsGetPosts)
-                {
-                    await sendPostsAction(ChatId, Settings.PostsCountPage, cancellationToken);
-                }
-            }
-            catch (Exception ex)
-            {
-                await _exceptionHandler.HandleException(ChatId, ex);
-            }
-        })
-            .WithName("SendPosts")
-            .ToRunNow()
-            .AndEvery(Settings.PostsPeriodHours).Hours();
-    }
-
-    public void ScheduleSendStories(Func<long,CancellationToken,Task> sendStoriesAction, CancellationToken cancellationToken)
-    {
-        Schedule(async () => 
-        {
-            try
-            {
-                if (Settings.IsGetStories)
-                {
-                    await sendStoriesAction(ChatId, cancellationToken);
-                }
-            }
-            catch(Exception ex)
-            {
-                await _exceptionHandler.HandleException(ChatId, ex);
-            }
-        })
-            .WithName("SendStories")
-            .ToRunNow()
-            .AndEvery(Settings.StoryPeriodHours).Hours();
-    }
-
     public async Task ResetCache(CancellationToken cancellationToken)
     {
         if (_resetCacheToken != null && !_resetCacheToken.IsCancellationRequested && _resetCacheToken.Token.CanBeCanceled)

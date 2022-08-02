@@ -4,7 +4,7 @@ using Telegram.Bot;
 
 namespace NavitalevichBot.Actions.Core;
 
-internal abstract class BaseAdminAction : BaseUserAction
+internal abstract class BaseAdminAction<T> : BaseUserAction<T>
 {
     protected readonly IConfiguration _config;
 

@@ -5,5 +5,6 @@ namespace NavitalevichBot.Services.Session;
 
 public interface IInstSessionHandler : ISessionHandler
 {
+    public long ChatId { get; }
     StateData GetStateData();
 }

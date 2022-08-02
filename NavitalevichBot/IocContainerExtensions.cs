@@ -1,10 +1,16 @@
 ﻿using Autofac;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
 using NavitalevichBot.Actions;
 using NavitalevichBot.Actions.AdminActions;
 using NavitalevichBot.Data;
 using NavitalevichBot.Data.Sqlite;
 using NavitalevichBot.Services;
+using Serilog;
+using Serilog.Sinks.Elasticsearch;
+using System.Reflection;
 using Telegram.Bot;
 
 namespace NavitalevichBot;
@@ -49,13 +55,39 @@ public static class IocContainerExtensions
     public static IConfiguration AddAndGetConfiguration(this ContainerBuilder builder)
     {
         var configBuilder = new ConfigurationBuilder();
-        configBuilder.AddJsonFile("appsettings.json");
+        configBuilder.AddJsonFile(Path.Combine("Configs","appsettings.json"));
+        configBuilder.AddJsonFile(Path.Combine("Configs", "security.json"));
 
         var config = configBuilder.Build();
-
+        
         builder.RegisterInstance(config).As<IConfiguration>().SingleInstance();
 
         return config;
+    }
+
+    public static ContainerBuilder ConfigureLogging(this ContainerBuilder builder, IConfiguration configuration)
+    {
+        Log.Logger = new LoggerConfiguration()
+            .Enrich.FromLogContext()
+            .Enrich.WithMachineName()
+            .WriteTo.Debug()
+            .WriteTo.Console()
+            .WriteTo.Elasticsearch(ConfigureElasticSink(configuration))
+            .ReadFrom.Configuration(configuration)
+            .CreateLogger();
+
+        builder.RegisterInstance(new LoggerFactory().AddSerilog()).As<ILoggerFactory>().SingleInstance();
+
+        return builder;
+    }
+
+    private static ElasticsearchSinkOptions ConfigureElasticSink(IConfiguration configuration)
+    {
+        return new ElasticsearchSinkOptions(new Uri(configuration["ElasticConfiguration:Uri"]))
+        {
+            AutoRegisterTemplate = true,
+            IndexFormat = $"{Assembly.GetExecutingAssembly().GetName().Name.ToLower().Replace(".", "-")}-{DateTime.UtcNow:yyyy-MM}"
+        };
     }
 
     public static ContainerBuilder AddTelegramBotClient(this ContainerBuilder builder, IConfiguration config)

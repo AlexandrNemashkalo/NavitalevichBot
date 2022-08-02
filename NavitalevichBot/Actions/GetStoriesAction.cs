@@ -5,7 +5,7 @@ using NavitalevichBot.Actions.Core;
 
 namespace NavitalevichBot.Actions;
 
-internal class GetStoriesAction : BaseUserAction, IBotAction
+internal class GetStoriesAction : BaseUserAction<GetStoriesAction>, IBotAction
 {
     private readonly TelegramInstService _telegramInstService;
 

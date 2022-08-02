@@ -3,8 +3,10 @@ using Telegram.Bot;
 
 namespace NavitalevichBot.Actions.Core;
 
-internal abstract class BaseUserAction 
+internal abstract class BaseUserAction<T>
 {
+    public string Name => typeof(T).Name;
+
     protected readonly ITelegramBotClient _botClient;
 
     public BaseUserAction(ITelegramBotClient botClient)

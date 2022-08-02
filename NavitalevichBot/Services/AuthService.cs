@@ -1,5 +1,6 @@
 ﻿using FluentScheduler;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NavitalevichBot.Data;
 using NavitalevichBot.Models;
 
@@ -20,7 +21,8 @@ public class AuthService
         IInstSessionHandlerManager instSessionHandlerManager,
         InstClientFactory instClientFactory,
         TelegramInstService telegramInstService,
-        IConfiguration config
+        IConfiguration config,
+        ILoggerFactory loggerFactory
     )
     {
         _dbContext = dbContext;
@@ -71,8 +73,8 @@ public class AuthService
 
     private void SheduleInstModule(InstModule instModule, CancellationToken cancellationToken = default)
     {
-        instModule.ScheduleSendPosts(_telegramInstService.SendPosts, cancellationToken);
-        instModule.ScheduleSendStories(_telegramInstService.SendStories, cancellationToken);
+        _instManager.ScheduleSendPosts(instModule, _telegramInstService.SendPosts, cancellationToken);
+        _instManager.ScheduleSendStories(instModule, _telegramInstService.SendStories, cancellationToken);
         JobManager.Initialize(instModule);
     }
 }

@@ -5,7 +5,7 @@ using Telegram.Bot;
 
 namespace NavitalevichBot.Actions;
 
-internal class SetSettingsAction : BaseUserAction, IBotAction
+internal class SetSettingsAction : BaseUserAction<SetSettingsAction>, IBotAction
 {
     private readonly LastUpdatesManager _lastUpdatesManager;
     private InstModuleManager _instModuleManager;

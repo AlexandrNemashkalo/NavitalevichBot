@@ -6,7 +6,7 @@ using Telegram.Bot;
 
 namespace NavitalevichBot.Actions;
 
-internal class DisableInstUserAction : BaseUserAction, IBotAction
+internal class DisableInstUserAction : BaseUserAction<DisableInstUserAction>, IBotAction
 {
     private readonly IStorageContext _dbContext;
 

@@ -9,7 +9,7 @@ using NavitalevichBot.Actions.Core;
 
 namespace NavitalevichBot.Actions;
 
-internal class SetUserAction :BaseUserAction, IBotAction
+internal class SetUserAction : BaseUserAction<SetUserAction>, IBotAction
 {
     private readonly InstModuleManager _instManager;
     private readonly LastUpdatesManager _lastUpdatesManager;
@@ -88,6 +88,7 @@ internal class SetUserAction :BaseUserAction, IBotAction
 
             var instModule = _instManager.CreateInstModule(instaApi, chatId, cancellationToken);
             SheduleInstModule(instModule, cancellationToken);
+            JobManager.Initialize(instModule);
 
             await _botClient.SendTextMessageAsync(chatId, "success", cancellationToken: cancellationToken);
             return true;
@@ -98,8 +99,8 @@ internal class SetUserAction :BaseUserAction, IBotAction
 
     private void SheduleInstModule(InstModule instModule, CancellationToken cancellationToken = default)
     {
-        instModule.ScheduleSendPosts(_telegramInstService.SendPosts, cancellationToken);
-        instModule.ScheduleSendStories(_telegramInstService.SendStories, cancellationToken);
+        _instManager.ScheduleSendPosts(instModule, _telegramInstService.SendPosts, cancellationToken);
+        _instManager.ScheduleSendStories(instModule, _telegramInstService.SendStories, cancellationToken);
         JobManager.Initialize(instModule);
     }
 }

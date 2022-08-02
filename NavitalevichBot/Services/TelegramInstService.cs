@@ -5,6 +5,8 @@ using InstagramApiSharp.Classes.Models;
 using Telegram.Bot.Exceptions;
 using NavitalevichBot.Exceptions;
 using NavitalevichBot.Data.Entities;
+using Microsoft.Extensions.Logging;
+using NavitalevichBot.Helpers;
 
 namespace NavitalevichBot.Services;
 
@@ -13,16 +15,22 @@ public class TelegramInstService
     private readonly IStorageContext _dbContext;
     private readonly ITelegramBotClient _botClient;
     private readonly InstModuleManager _instModuleManager;
+    private readonly ExceptionHandler _exceptionHandler;
+    private readonly ILogger _logger;
 
     public TelegramInstService(
         IStorageContext dbContext, 
         ITelegramBotClient botClient,
-        InstModuleManager instModuleManager
+        InstModuleManager instModuleManager,
+        ExceptionHandler exceptionHandler,
+        ILoggerFactory loggerFactory
     )
     {
         _dbContext = dbContext;
         _botClient = botClient;
         _instModuleManager = instModuleManager; 
+        _exceptionHandler = exceptionHandler;
+        _logger = loggerFactory.CreateLogger<TelegramInstService>();
     }
 
     public async Task LikeMedia(long chatId, int? messageid, CancellationToken cancellationToken)
@@ -50,7 +58,8 @@ public class TelegramInstService
 
         if (!stories.Succeeded)
         {
-            throw new InstException(stories.Info.Message, stories.Info.ResponseType);
+            await _exceptionHandler.HandleException(chatId, new InstException(stories.Info.Message, stories.Info.ResponseType));
+            return true;
         }
 
         var hasNewMedia = false;
@@ -79,7 +88,7 @@ public class TelegramInstService
                 var userStories = await instModule.InstClient.StoryProcessor.GetUserStoryAsync(story.User.Pk);
                 if (!userStories.Succeeded)
                 {
-                    Console.WriteLine("Story Error: " + userStories.Info.Message);
+                    await _exceptionHandler.HandleException(chatId, new InstException(userStories.Info.Message, userStories.Info.ResponseType));
                     continue;
                 }
                 storiesList = userStories.Value.Items;
@@ -131,8 +140,7 @@ public class TelegramInstService
                 }
                 catch (ApiRequestException ex)
                 {
-                    Console.WriteLine("Story error: " + ex.Message);
-                    Console.WriteLine(ex.ErrorCode);
+                    _logger.LogError(chatId, $"Story error: { ex.Message}; {ex.ErrorCode} ");
                 }
             }
         }
@@ -152,7 +160,8 @@ public class TelegramInstService
 
         if (!newFeeds.Succeeded)
         {
-            throw new InstException(newFeeds.Info.Message, newFeeds.Info.ResponseType);
+            await _exceptionHandler.HandleException(chatId, new InstException(newFeeds.Info.Message, newFeeds.Info.ResponseType));
+            return true;
         }
 
         if (newFeeds.Value.MediaItemsCount == 0)
@@ -221,8 +230,7 @@ public class TelegramInstService
                     }
                     catch (ApiRequestException ex2)
                     {
-                        Console.WriteLine("Post error" + ex2.Message);
-                        Console.WriteLine(ex2.ErrorCode);
+                        _logger.LogError(chatId, $"Story error: { ex2.Message}; {ex2.ErrorCode} ");
                     }
                 }
             }

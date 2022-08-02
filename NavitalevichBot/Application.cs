@@ -1,6 +1,8 @@
-﻿using NavitalevichBot.Actions;
+﻿using Microsoft.Extensions.Logging;
+using NavitalevichBot.Actions;
 using NavitalevichBot.Actions.Core;
 using NavitalevichBot.Data;
+using NavitalevichBot.Helpers;
 using NavitalevichBot.Models;
 using NavitalevichBot.Services;
 using Telegram.Bot;
@@ -19,6 +21,7 @@ internal class Application
     private readonly LastUpdatesManager _lastUpdatesManager;
     private readonly AuthService _authService;
     private readonly ExceptionHandler _exceptionHandler;
+    private readonly ILogger _logger;
 
     public Application(
         IStorageInitializer storageInitializer,
@@ -26,7 +29,8 @@ internal class Application
         IEnumerable<IBotAction> botActions,
         LastUpdatesManager lastUpdatesManager,
         AuthService authService,
-        ExceptionHandler exceptionHandler
+        ExceptionHandler exceptionHandler,
+        ILoggerFactory loggerFactory
     )
     {
         _storageInitializer = storageInitializer;
@@ -35,11 +39,14 @@ internal class Application
         _lastUpdatesManager = lastUpdatesManager;
         _authService = authService;
         _exceptionHandler = exceptionHandler;
+        _logger = loggerFactory.CreateLogger<Application>();
     }
 
     public async Task Run(CancellationToken cancellationToken = default)
     {
+        _logger.LogDebug("Run");
         await _storageInitializer.InitializeStorage();
+        _logger.LogDebug("База данны инициализирована");
 
         await _botClient.SetMyCommandsAsync(BotActionCommands.GetUserBotCommands());
 
@@ -50,12 +57,13 @@ internal class Application
             HandleErrorAsync,
             receiverOptions,
             cancellationToken: cancellationToken);
+
+        _logger.LogInformation("Бот запущен!");
     }
 
     public async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
         var chatId = update?.Message?.Chat?.Id;
-        Console.WriteLine($"{chatId} {DateTime.Now}");
 
         if (chatId == null ) return;
         if (update?.Type != UpdateType.Message || update?.Message?.Type != MessageType.Text)
@@ -64,13 +72,14 @@ internal class Application
             return;
         }
 
-
         var messageText = update.Message.Text;
+        _logger.LogDebug(chatId.Value, $"Получено сообщение: \"{messageText}\"");
         try
         {
             var userStatus = await _authService.GetUserStatusAndTryLogin(chatId.Value, cancellationToken);
+            _logger.LogDebug(chatId.Value, "UserStatus: " + userStatus.ToString());
 
-            if(userStatus == TelegramUserStatus.NotAvaliable)
+            if (userStatus == TelegramUserStatus.NotAvaliable)
             {
                 await botClient.SendTextMessageAsync(chatId, $"😩 sorry access blocked \n contact the bot admin (@navitalevich) and tell him your chatId:{chatId}", cancellationToken: cancellationToken);
                 return;
@@ -88,16 +97,16 @@ internal class Application
                 if (await botAction.HandleAction(actionParams, cancellationToken))
                 {
                     isMatch = true;
+                    _logger.LogDebug(chatId.Value, $"Комманда \"{messageText}\" обработана {botAction.Name}");
                     break;
                 }
             }
 
             if (!isMatch)
             {
+                _logger.LogDebug(chatId.Value, $"Команда \"{messageText}\" не была обработана");
                 await _botClient.SendTextMessageAsync(chatId, $"command \"{messageText}\" not found", cancellationToken: cancellationToken);
             }
-
-            await Task.Delay(100000);
         }
         catch (Exception ex)
         {
@@ -115,7 +124,7 @@ internal class Application
             ? $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}"
             : exception.ToString();
 
-        Console.WriteLine($"{errorMessage}  {DateTime.Now}");
+        _logger.LogError(errorMessage);
         return Task.CompletedTask;
     }
 }

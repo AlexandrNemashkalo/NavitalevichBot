@@ -6,7 +6,7 @@ using Telegram.Bot;
 
 namespace NavitalevichBot.Actions.AdminActions;
 
-internal class SetProxyAction : BaseAdminAction, IBotAction
+internal class SetProxyAction : BaseAdminAction<SetProxyAction>, IBotAction
 {
     private readonly ProxyManager _proxyManager;
     private readonly LastUpdatesManager _lastUpdatesManager;

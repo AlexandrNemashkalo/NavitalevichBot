@@ -5,7 +5,7 @@ using Telegram.Bot;
 
 namespace NavitalevichBot.Actions;
 
-internal class LogoutUserAction : BaseUserAction, IBotAction
+internal class LogoutUserAction : BaseUserAction<LogoutUserAction>, IBotAction
 {
     private readonly IStorageContext _dbContext;
     private readonly InstModuleManager _instModuleManager;

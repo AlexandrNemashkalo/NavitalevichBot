@@ -5,7 +5,7 @@ using Telegram.Bot;
 
 namespace NavitalevichBot.Actions;
 
-internal class GetInfoAction : BaseUserAction, IBotAction
+internal class GetInfoAction : BaseUserAction<GetInfoAction>, IBotAction
 {
     private readonly InstModuleManager _instModuleManager;
     private readonly IStorageContext _dbContext;

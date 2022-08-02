@@ -5,7 +5,7 @@ using NavitalevichBot.Actions.Core;
 
 namespace NavitalevichBot.Actions;
 
-internal class LikePostAction : BaseUserAction, IBotAction
+internal class LikePostAction : BaseUserAction<LikePostAction>, IBotAction
 {
     private readonly TelegramInstService _telegramInstService;
 

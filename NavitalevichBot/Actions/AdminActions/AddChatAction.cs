@@ -6,7 +6,7 @@ using Telegram.Bot;
 
 namespace NavitalevichBot.Actions.AdminActions;
 
-internal class AddChatAction : BaseAdminAction, IBotAction
+internal class AddChatAction : BaseAdminAction<AddChatAction>, IBotAction
 {
     private readonly IStorageContext _dbContext;
     private readonly LastUpdatesManager _lastUpdatesManager;

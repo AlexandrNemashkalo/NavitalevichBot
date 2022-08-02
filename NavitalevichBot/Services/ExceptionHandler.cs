@@ -1,5 +1,7 @@
-﻿using NavitalevichBot.Data;
+﻿using Microsoft.Extensions.Logging;
+using NavitalevichBot.Data;
 using NavitalevichBot.Exceptions;
+using NavitalevichBot.Helpers;
 using Telegram.Bot;
 
 namespace NavitalevichBot.Services;
@@ -7,17 +9,22 @@ public class ExceptionHandler
 {
     private readonly ITelegramBotClient _botClient;
     private readonly IStorageContext _dbContext;
+    private readonly ILogger _logger;
 
-    public ExceptionHandler(ITelegramBotClient botClient, IStorageContext dbContext)
+    public ExceptionHandler(
+        ITelegramBotClient botClient, 
+        IStorageContext dbContext,
+        ILoggerFactory loggerFactory
+    )
     {
         _botClient = botClient;
         _dbContext = dbContext;
+        _logger = loggerFactory.CreateLogger<ExceptionHandler>();
     }
 
     public async Task HandleException(long chatId, Exception ex)
     {
-        Console.WriteLine(ex.Message);
-        Console.WriteLine(ex.StackTrace);
+        _logger.LogError(chatId, $"{ex.Message} \n{ex.StackTrace}");
 
         switch (ex)
         {
