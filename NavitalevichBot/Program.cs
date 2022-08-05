@@ -22,7 +22,6 @@ public class Program
             .Build();
 
         await container.Resolve<Application>().Run(cts.Token);
-
         Console.ReadLine();
         cts.Cancel();
         await Task.Delay(2000);

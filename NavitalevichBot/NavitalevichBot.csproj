@@ -5,6 +5,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <DockerDefaultTargetOS>Windows</DockerDefaultTargetOS>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +16,7 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="6.0.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.14.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="6.0.1" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="2.2.0" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="3.1.0" />
@@ -26,9 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NavitalevichBot.Core\NavitalevichBot.Data.csproj" />
     <ProjectReference Include="..\NavitalevichBot.Data.Mongo\NavitalevichBot.Data.Mongo.csproj" />
-    <ProjectReference Include="..\NavitalevichBot.Data.Sqlite\NavitalevichBot.Data.Sqlite.csproj" />
+    <ProjectReference Include="..\NavitalevichBot.Data\NavitalevichBot.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>

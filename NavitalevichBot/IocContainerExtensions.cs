@@ -6,7 +6,6 @@ using Microsoft.Extensions.Options;
 using NavitalevichBot.Actions;
 using NavitalevichBot.Actions.AdminActions;
 using NavitalevichBot.Data;
-using NavitalevichBot.Data.Sqlite;
 using NavitalevichBot.Services;
 using Serilog;
 using Serilog.Sinks.Elasticsearch;

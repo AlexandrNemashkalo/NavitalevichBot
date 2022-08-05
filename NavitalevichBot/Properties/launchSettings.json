@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "NavitalevichBot": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}

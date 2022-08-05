@@ -5,11 +5,11 @@ VisualStudioVersion = 17.1.32407.343
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NavitalevichBot", "NavitalevichBot\NavitalevichBot.csproj", "{A964D73C-9D58-4B1D-8985-F3C68BE78F8C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NavitalevichBot.Data.Sqlite", "NavitalevichBot.Data.Sqlite\NavitalevichBot.Data.Sqlite.csproj", "{D588C9D5-063A-4FA0-A78B-27EFCBBBDE22}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NavitalevichBot.Data.Sqlite", "NavitalevichBot.Data.Sqlite\NavitalevichBot.Data.Sqlite.csproj", "{D588C9D5-063A-4FA0-A78B-27EFCBBBDE22}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NavitalevichBot.Data.Mongo", "NavitalevichBot.Data.Mongo\NavitalevichBot.Data.Mongo.csproj", "{D7A9FF84-E561-4778-B668-3A08FB5FEDF5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NavitalevichBot.Data.Mongo", "NavitalevichBot.Data.Mongo\NavitalevichBot.Data.Mongo.csproj", "{D7A9FF84-E561-4778-B668-3A08FB5FEDF5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NavitalevichBot.Data", "NavitalevichBot.Core\NavitalevichBot.Data.csproj", "{8BEE19D6-86F9-4A86-A185-F61E02A2EF98}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NavitalevichBot.Data", "NavitalevichBot.Data\NavitalevichBot.Data.csproj", "{1EC0E772-4933-4C26-99FC-91B835CF98E0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,10 +29,10 @@ Global
 		{D7A9FF84-E561-4778-B668-3A08FB5FEDF5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D7A9FF84-E561-4778-B668-3A08FB5FEDF5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D7A9FF84-E561-4778-B668-3A08FB5FEDF5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8BEE19D6-86F9-4A86-A185-F61E02A2EF98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8BEE19D6-86F9-4A86-A185-F61E02A2EF98}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8BEE19D6-86F9-4A86-A185-F61E02A2EF98}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8BEE19D6-86F9-4A86-A185-F61E02A2EF98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1EC0E772-4933-4C26-99FC-91B835CF98E0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1EC0E772-4933-4C26-99FC-91B835CF98E0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1EC0E772-4933-4C26-99FC-91B835CF98E0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1EC0E772-4933-4C26-99FC-91B835CF98E0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
