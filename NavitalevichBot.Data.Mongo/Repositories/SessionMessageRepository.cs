@@ -26,7 +26,7 @@ internal class SessionMessageRepository : ISessionMessageRepository
 
     public async Task DeleteSessionMessage(long chatId)
     {
-        await _context.SessionMessages.DeleteOneAsync(Builders<SessionMessageBson>.Filter.Eq("chatId", chatId));
+        await _context.SessionMessages.DeleteOneAsync(Builders<SessionMessageBson>.Filter.Eq("_id", chatId));
     }
 
     public async Task<int?> GetSessionMessage(long chatId)
