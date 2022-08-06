@@ -73,7 +73,10 @@ internal class Application
         }
 
         var messageText = update.Message.Text;
-        _logger.LogDebug(chatId.Value, $"Получено сообщение: \"{messageText}\"");
+        var nessageTextToLog = messageText.Contains("Password") && messageText.Contains("UserName")
+            ? "Пароль и логин"
+            : messageText;
+        _logger.LogDebug(chatId.Value, $"Получено сообщение: \"{nessageTextToLog}\"");
         try
         {
             var userStatus = await _authService.GetUserStatusAndTryLogin(chatId.Value, cancellationToken);
@@ -97,15 +100,15 @@ internal class Application
                 if (await botAction.HandleAction(actionParams, cancellationToken))
                 {
                     isMatch = true;
-                    _logger.LogDebug(chatId.Value, $"Комманда \"{messageText}\" обработана {botAction.Name}");
+                    _logger.LogDebug(chatId.Value, $"Комманда \"{nessageTextToLog}\" обработана {botAction.Name}");
                     break;
                 }
             }
 
             if (!isMatch)
             {
-                _logger.LogDebug(chatId.Value, $"Команда \"{messageText}\" не была обработана");
-                await _botClient.SendTextMessageAsync(chatId, $"command \"{messageText}\" not found", cancellationToken: cancellationToken);
+                _logger.LogDebug(chatId.Value, $"Команда \"{nessageTextToLog}\" не была обработана");
+                await _botClient.SendTextMessageAsync(chatId, $"command \"{nessageTextToLog}\" not found", cancellationToken: cancellationToken);
             }
         }
         catch (Exception ex)
