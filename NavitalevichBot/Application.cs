@@ -73,10 +73,10 @@ internal class Application
         }
 
         var messageText = update.Message.Text;
-        var nessageTextToLog = messageText.Contains("Password") && messageText.Contains("UserName")
+        var messageTextToLog = messageText.Contains("Password") && messageText.Contains("UserName")
             ? "Пароль и логин"
             : messageText;
-        _logger.LogDebug(chatId.Value, $"Получено сообщение: \"{nessageTextToLog}\"");
+        _logger.LogDebug(chatId.Value, $"Получено сообщение: \"{messageTextToLog}\"");
         try
         {
             var userStatus = await _authService.GetUserStatusAndTryLogin(chatId.Value, cancellationToken);
@@ -100,15 +100,15 @@ internal class Application
                 if (await botAction.HandleAction(actionParams, cancellationToken))
                 {
                     isMatch = true;
-                    _logger.LogDebug(chatId.Value, $"Комманда \"{nessageTextToLog}\" обработана {botAction.Name}");
+                    _logger.LogDebug(chatId.Value, $"Комманда \"{messageTextToLog}\" обработана {botAction.Name}");
                     break;
                 }
             }
 
             if (!isMatch)
             {
-                _logger.LogDebug(chatId.Value, $"Команда \"{nessageTextToLog}\" не была обработана");
-                await _botClient.SendTextMessageAsync(chatId, $"command \"{nessageTextToLog}\" not found", cancellationToken: cancellationToken);
+                _logger.LogDebug(chatId.Value, $"Команда \"{messageTextToLog}\" не была обработана");
+                await _botClient.SendTextMessageAsync(chatId, $"command \"{messageTextToLog}\" not found", cancellationToken: cancellationToken);
             }
         }
         catch (Exception ex)
@@ -117,7 +117,7 @@ internal class Application
         }
         finally
         {
-            _lastUpdatesManager.SetLastUpdate(chatId.Value, messageText!);
+            _lastUpdatesManager.SetLastUpdate(chatId.Value, messageTextToLog!);
         }
     }
 
