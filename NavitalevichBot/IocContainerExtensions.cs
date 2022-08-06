@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using NavitalevichBot.Actions;
 using NavitalevichBot.Actions.AdminActions;
 using NavitalevichBot.Data;
+using NavitalevichBot.Helpers;
 using NavitalevichBot.Services;
 using Serilog;
 using Serilog.Sinks.Elasticsearch;
@@ -54,8 +55,8 @@ public static class IocContainerExtensions
     public static IConfiguration AddAndGetConfiguration(this ContainerBuilder builder)
     {
         var configBuilder = new ConfigurationBuilder();
-        configBuilder.AddJsonFile(Path.Combine("Configs","appsettings.json"));
-        configBuilder.AddJsonFile(Path.Combine("Configs", "security.json"));
+        configBuilder.AddJsonFile(Path.Combine("Configs", $"appsettings.{EnvironmentHelper.GetEnvironmentName()}.json"));
+        configBuilder.AddJsonFile(Path.Combine("Configs", $"security.{EnvironmentHelper.GetEnvironmentName()}.json"));
 
         var config = configBuilder.Build();
         

@@ -4,6 +4,8 @@ namespace NavitalevichBot.Helpers;
 
 public static class EnvironmentHelper
 {
+    private const string ProdEnvironmentName = "prod";
+    private const string LocalEnvironmentName = "local";
 
     public static bool VPNIsOn()
     {
@@ -17,5 +19,10 @@ public static class EnvironmentHelper
     {
         var path = Directory.GetCurrentDirectory();
         return path == "C:\\Git\\NavitalevichBot\\NavitalevichBot\\bin\\Debug\\net6.0";
+    }
+
+    public static string GetEnvironmentName()
+    {
+        return IsLocal() ? LocalEnvironmentName : ProdEnvironmentName;
     }
 }
