@@ -41,11 +41,11 @@ internal class SetUserAction : BaseUserAction<SetUserAction>, IBotAction
 
         if (messageText == BotActionCommands.setuser)
         {
-            if (!EnvironmentHelper.VPNIsOn())
+            /*if (!EnvironmentHelper.VPNIsOn())
             {
                 await _botClient.SendTextMessageAsync(chatId, "authorization is not supported at the moment, contact the administrator (@navitalevich)", cancellationToken: cancellationToken);
                 return true;
-            }
+            }*/
 
             if (data.UserStatus == TelegramUserStatus.InstAuth)
             {

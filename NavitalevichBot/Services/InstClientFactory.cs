@@ -37,11 +37,11 @@ public class InstClientFactory
             //.SetSessionHandler(new FileSessionHandler() { FilePath = $"{username}_bot.bin" })
             .SetSessionHandler(instSessionHandler);
 
-        var proxy = _proxyManager.GetProxy();
+        /*var proxy = _proxyManager.GetProxy();
         if (proxy != null)
         {
             instaApiBuilder.UseHttpClientHandler(new HttpClientHandler { Proxy = proxy });
-        }
+        }*/
         var instaApi = instaApiBuilder.Build();
         
 
